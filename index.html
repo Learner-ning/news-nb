@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NOW — 实时新闻</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" id="brand" role="button" tabindex="0">NOW<span>.</span></div>
+    <div class="status"><i></i> LIVE · 实时更新</div>
+    <button id="refresh" class="refresh" title="刷新" aria-label="刷新">↻</button>
+  </header>
+
+  <main id="app">
+    <!-- 列表视图 -->
+    <div id="view-list">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">THE NEWS, NOW</p>
+          <h1>发生了什么，<em>现在就知道。</em></h1>
+        </div>
+        <p class="intro">一个大胆、克制、快速的实时新闻聚合器。点击任意新闻查看详情。</p>
+      </section>
+
+      <nav id="filters" class="filters">
+        <button class="active" data-source="all">全部</button>
+        <button data-source="综合">综合</button>
+        <button data-source="科技">科技</button>
+        <button data-source="数码">数码</button>
+      </nav>
+
+      <div id="meta" class="meta">正在加载新闻…</div>
+      <section id="news" class="news"></section>
+    </div>
+
+    <!-- 详情视图 -->
+    <div id="view-detail" class="hidden">
+      <button id="back-btn" class="back-btn">← 返回列表</button>
+      <article class="detail" id="detail-content">
+        <div class="skeleton detail-skeleton"></div>
+      </article>
+    </div>
+  </main>
+
+  <footer>NEWSNOW BOLD · 点击新闻进入详情页，再跳转原文</footer>
+  <script src="/app.js"></script>
+</body>
+</html>
