@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NOW — 实时新闻</title><link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">NOW<span>.</span></div>
+  <div class="status"><i></i> LIVE · 实时更新</div>
+  <button id="refresh" class="refresh">↻</button>
+</header>
+<main>
+  <section class="hero">
+    <div><p class="eyebrow">THE NEWS, NOW</p><h1>发生了什么，<em>现在就知道。</em></h1></div>
+    <p class="intro">一个大胆、克制、快速的实时新闻聚合器。</p>
+  </section>
+  <nav id="filters" class="filters">
+    <button class="active" data-source="all">全部</button><button data-source="综合">综合</button>
+    <button data-source="科技">科技</button><button data-source="数码">数码</button>
+  </nav>
+  <div id="meta" class="meta">正在加载新闻…</div>
+  <section id="news" class="news"></section>
+</main>
+<footer>NEWSNOW BOLD · 点击任意新闻跳转原文</footer>
+<script src="/app.js"></script>
+</body></html>
