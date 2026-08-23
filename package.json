@@ -1,8 +1,19 @@
 {
-  "name": "newsnow-bold",
-  "version": "1.0.0",
+  "name": "news-tree",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "scripts": {"start": "node server.js"},
-  "dependencies": {"express": "^5.1.0", "rss-parser": "^3.13.0"}
+  "description": "新闻知识树 —— 枝干是分类，枝叶是不同厂家的新闻模块",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "rss-parser": "^3.13.0",
+    "three": "^0.185.1"
+  }
 }
