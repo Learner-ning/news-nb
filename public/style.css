@@ -1,0 +1,342 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+:root {
+  --bg: #f4f3ef;
+  --ink: #111;
+  --muted: #777;
+  --line: #d8d6cf;
+  --accent: #ff4d00;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.topbar {
+  height: 72px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 clamp(18px, 5vw, 72px);
+  gap: 22px;
+  position: sticky;
+  top: 0;
+  background: rgba(244, 243, 239, 0.92);
+  backdrop-filter: blur(16px);
+  z-index: 5;
+}
+
+.brand {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -2px;
+  cursor: pointer;
+  user-select: none;
+}
+.brand span { color: var(--accent); }
+
+.status {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: #666;
+}
+.status i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: #19a45b;
+  border-radius: 50%;
+  margin-right: 7px;
+}
+
+.refresh {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  font-size: 20px;
+  cursor: pointer;
+}
+.refresh:hover { background: #fff; }
+
+main {
+  max-width: 1180px;
+  margin: auto;
+  padding: clamp(42px, 8vw, 100px) 20px 80px;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  align-items: end;
+  margin-bottom: 55px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: var(--accent);
+  margin: 0 0 18px;
+}
+
+h1 {
+  font-size: clamp(46px, 7vw, 92px);
+  line-height: 0.94;
+  letter-spacing: -5px;
+  max-width: 850px;
+  margin: 0;
+}
+h1 em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+.intro {
+  max-width: 240px;
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+.filters button {
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 99px;
+  padding: 9px 17px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.filters button.active,
+.filters button:hover {
+  background: var(--ink);
+  color: white;
+  border-color: var(--ink);
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 20px 0;
+}
+
+.news {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.card {
+  background: var(--bg);
+  padding: 25px;
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: 0.18s;
+  cursor: pointer;
+}
+.card:hover {
+  background: #fff;
+}
+.card:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.card.empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--muted);
+  cursor: default;
+}
+
+.tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 22px 0 16px;
+  letter-spacing: -0.5px;
+}
+
+.summary {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.foot {
+  font-size: 11px;
+  color: #999;
+  margin-top: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.foot .go {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+footer {
+  text-align: center;
+  color: #999;
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 25px;
+}
+
+.skeleton {
+  min-height: 190px;
+  background: linear-gradient(90deg, #ebe9e2, #f5f4f0, #ebe9e2);
+  background-size: 200% 100%;
+  animation: s 1.2s infinite;
+}
+@keyframes s {
+  to { background-position: -200% 0; }
+}
+
+/* ========== 详情页 ========== */
+.hidden { display: none !important; }
+
+.back-btn {
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 99px;
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  margin-bottom: 28px;
+  transition: 0.15s;
+}
+.back-btn:hover {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+
+.detail {
+  max-width: 720px;
+}
+
+.detail-tag {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+.detail-title {
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -1.5px;
+  margin: 0 0 20px;
+}
+
+.detail-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 36px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.detail-body {
+  font-size: 16px;
+  line-height: 1.85;
+  color: #333;
+  white-space: pre-wrap;
+  margin-bottom: 40px;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ink);
+  color: #fff;
+  text-decoration: none;
+  padding: 14px 24px;
+  border-radius: 99px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: 0.15s;
+}
+.btn-primary:hover {
+  background: var(--accent);
+}
+
+.btn-secondary {
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 14px 24px;
+  border-radius: 99px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: 0.15s;
+}
+.btn-secondary:hover {
+  background: #fff;
+}
+
+.detail-skeleton {
+  min-height: 320px;
+  border-radius: 8px;
+}
+
+.detail-error {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 700px) {
+  .topbar { height: 62px; }
+  .hero { display: block; margin-bottom: 38px; }
+  h1 { font-size: 54px; letter-spacing: -3px; }
+  .intro { margin-top: 24px; }
+  .news { grid-template-columns: 1fr; }
+  .card { min-height: 175px; padding: 21px; }
+  .title { font-size: 19px; margin: 16px 0 14px; }
+  .filters { overflow: auto; white-space: nowrap; }
+  .filters button { flex: none; }
+  .detail-title { font-size: 26px; }
+  .detail-body { font-size: 15px; }
+}

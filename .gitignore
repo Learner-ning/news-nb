@@ -1,0 +1,12 @@
+node_modules/
+.npm/
+package-lock.json.bak
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.zip
