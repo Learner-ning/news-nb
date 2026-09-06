@@ -284,8 +284,12 @@ function wire() {
       save();
       els.dock.querySelectorAll(".dock-btn").forEach((x) => x.classList.toggle("active", x.dataset.mode === m));
       showMainView();
-      if (m === "list") renderList();
-      else requestAnimationFrame(() => tree.fit(true));
+      if (m === "list") {
+        renderList();
+      } else {
+        // 若页面以列表模式启动，树从未构建过，切回时需真正生成树
+        rebuildTree();
+      }
     });
   });
 
