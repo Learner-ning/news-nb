@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#070b14">
+  <meta name="theme-color" content="#0b1322">
   <title>新闻树 · NOW News Tree</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
 </head>
-<body>
-  <!-- 深色沉浸背景（仅环境，不含树） -->
+<body data-theme="night">
+  <!-- 背景（仅环境，不含树）：可换预设主题或用户上传图片 -->
   <div id="bg" aria-hidden="true">
+    <div class="bg-photo" id="bg-photo"></div>
+    <div class="aurora"></div>
     <div class="stars" id="bg-stars"></div>
     <div class="vignette"></div>
   </div>
@@ -24,8 +26,46 @@
       <span>NOW<span class="dot">·</span>新闻树</span>
     </button>
     <div class="top-status" id="top-status" title="最近一次数据更新">正在连接…</div>
+    <button id="bg-btn" class="icon-btn" title="背景与外观设置" aria-label="背景设置">🎨</button>
     <button id="refresh" class="icon-btn" title="立即刷新数据" aria-label="刷新数据">↻</button>
   </header>
+
+  <!-- 背景设置面板 -->
+  <div id="bg-settings" class="bg-settings hidden" role="dialog" aria-label="背景设置">
+    <div class="bs-head">
+      <b>背景与外观</b>
+      <button class="bs-x" id="bg-settings-close" aria-label="关闭">✕</button>
+    </div>
+
+    <div class="bs-sec">
+      <div class="bs-label">预设主题</div>
+      <div class="bs-themes">
+        <button class="bs-theme" data-theme="night">🌙 深色沉浸</button>
+        <button class="bs-theme" data-theme="dawn">🌄 明亮晨曦</button>
+        <button class="bs-theme" data-theme="ocean">🌊 深海蓝调</button>
+      </div>
+    </div>
+
+    <div class="bs-sec">
+      <div class="bs-label">自定义背景图片（覆盖预设）</div>
+      <div class="bs-row">
+        <button class="btn-ghost" id="bg-upload-btn" type="button">上传图片</button>
+        <input type="file" id="bg-file" accept="image/*" hidden>
+        <div class="bs-or">或</div>
+        <input type="text" id="bg-url-input" placeholder="粘贴图片 URL（https://…）" spellcheck="false">
+        <button class="btn-ghost" id="bg-url-apply" type="button">应用</button>
+      </div>
+      <div id="bg-photo-state" class="bs-state hidden">
+        已使用自定义背景 <button class="linklike" id="bg-photo-remove" type="button">移除</button>
+      </div>
+    </div>
+
+    <div class="bs-sec">
+      <div class="bs-label">背景压暗 <span class="bs-val" id="dim-val">35%</span></div>
+      <input type="range" id="bg-dim" min="0" max="80" value="35" step="5">
+      <div class="bs-hint">压暗越多，树与文字越清晰（有背景图片时也有效）</div>
+    </div>
+  </div>
 
   <main id="stage">
     <!-- ======== 树模式 ======== -->
@@ -37,26 +77,15 @@
             <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
           </radialGradient>
           <linearGradient id="trunk-grad" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stop-color="#4a2f1c"/>
-            <stop offset="55%" stop-color="#6b4526"/>
-            <stop offset="100%" stop-color="#8a5a33"/>
+            <stop offset="0%" stop-color="#5a3a20"/>
+            <stop offset="55%" stop-color="#8a5a30"/>
+            <stop offset="100%" stop-color="#b07644"/>
           </linearGradient>
         </defs>
         <g id="world">
           <!-- 树被渲染到这里：树干/主枝/分枝/新闻叶片 -->
         </g>
       </svg>
-
-      <!-- 左侧：显示方式 -->
-      <div class="left-dock" role="group" aria-label="显示方式">
-        <div class="dock-title">显示方式</div>
-        <button class="dock-btn active" data-mode="tree" title="以新闻树方式浏览">
-          <span>新闻树</span>
-        </button>
-        <button class="dock-btn" data-mode="list" title="以新闻列表方式浏览">
-          <span>新闻列表</span>
-        </button>
-      </div>
 
       <!-- 右下：缩放控制 -->
       <div class="zoom-dock" role="group" aria-label="缩放控制">
@@ -98,6 +127,17 @@
         <div class="skeleton detail-skeleton"></div>
       </article>
     </section>
+
+    <!-- 左侧：显示方式（树 / 列表都可切换，全局可见） -->
+    <div class="left-dock" role="group" aria-label="显示方式">
+      <div class="dock-title">显示方式</div>
+      <button class="dock-btn active" data-mode="tree" title="以新闻树方式浏览">
+        <span class="db-ico">◧</span><span>新闻树</span>
+      </button>
+      <button class="dock-btn" data-mode="list" title="以新闻列表方式浏览">
+        <span class="db-ico">☰</span><span>新闻列表</span>
+      </button>
+    </div>
   </main>
 
   <!-- 底部：真实分类导航 -->

@@ -1,4 +1,4 @@
-// 新闻树应用入口：装配视图模式（树/列表）、真实分类、详情、刷新与路由
+// 新闻树应用入口：装配视图模式（树/列表）、真实分类、详情、刷新、路由与背景外观
 import { loadNews, getState, getTags, buildTreeModel, getUpdatedLabel } from "./news-store.js";
 import { TreeView } from "./tree-view.js";
 import { colorFor } from "./helpers.js";
@@ -22,8 +22,37 @@ const els = {
   catBar: $("#cat-bar"),
   catScroll: $("#cat-scroll"),
   hoverCard: $("#hover-card"),
-  treeHint: $("#tree-hint")
+  treeHint: $("#tree-hint"),
+  dock: document.querySelector(".left-dock"),
+  // 背景与外观
+  bg: $("#bg"),
+  bgPhoto: $("#bg-photo"),
+  bgSettings: $("#bg-settings"),
+  bgSettingsClose: $("#bg-settings-close"),
+  bgBtn: $("#bg-btn"),
+  bgThemeBtns: document.querySelectorAll(".bs-theme"),
+  bgUploadBtn: $("#bg-upload-btn"),
+  bgFile: $("#bg-file"),
+  bgUrlInput: $("#bg-url-input"),
+  bgUrlApply: $("#bg-url-apply"),
+  bgPhotoRemove: $("#bg-photo-remove"),
+  bgPhotoState: $("#bg-photo-state"),
+  bgDim: $("#bg-dim"),
+  dimVal: $("#dim-val")
 };
+
+function loadBg() {
+  const d = { theme: "night", photo: null, dim: 0.35 };
+  try {
+    const o = JSON.parse(localStorage.getItem("nt.bg") || "null");
+    if (o) {
+      d.theme = ["night", "dawn", "ocean"].includes(o.theme) ? o.theme : "night";
+      d.photo = typeof o.photo === "string" && o.photo ? o.photo : null;
+      d.dim = Number.isFinite(o.dim) ? Math.min(0.9, Math.max(0, o.dim)) : 0.35;
+    }
+  } catch {}
+  return d;
+}
 
 const state = {
   mode: (() => {
@@ -32,6 +61,7 @@ const state = {
   cat: (() => {
     try { return localStorage.getItem("nt.cat") || "all"; } catch { return "all"; }
   })(),
+  bg: loadBg(),
   data: null,  // 完整树模型（未筛选）
   items: []
 };
@@ -43,6 +73,42 @@ function save() {
     localStorage.setItem("nt.mode", state.mode);
     localStorage.setItem("nt.cat", state.cat);
   } catch {}
+}
+function saveBg() {
+  try { localStorage.setItem("nt.bg", JSON.stringify(state.bg)); } catch {}
+}
+
+// ---------------- 背景与外观 ----------------
+function applyBg() {
+  const { theme, photo, dim } = state.bg;
+  document.body.dataset.theme = theme;
+  els.bgThemeBtns.forEach((b) => b.classList.toggle("active", b.dataset.theme === theme));
+  els.bg.style.setProperty("--dim", String(dim));
+  els.bgDim.value = String(Math.round(dim * 100));
+  els.dimVal.textContent = Math.round(dim * 100) + "%";
+  if (photo) {
+    document.body.dataset.photo = "1";
+    els.bgPhoto.style.backgroundImage = `url("${photo}")`;
+    els.bgPhotoState.classList.remove("hidden");
+  } else {
+    document.body.dataset.photo = "0";
+    els.bgPhoto.style.backgroundImage = "";
+    els.bgPhotoState.classList.add("hidden");
+  }
+}
+
+function markPhotoReady() {
+  if (state.bg.photo) document.body.dataset.photoReady = "1";
+}
+
+function setBgPhoto(src) {
+  state.bg.photo = src;
+  saveBg();
+  const probe = new Image();
+  probe.onload = () => { applyBg(); markPhotoReady(); };
+  probe.onerror = () => { applyBg(); };
+  probe.src = src;
+  applyBg();
 }
 
 // ---------------- 状态与数据 ----------------
@@ -61,18 +127,15 @@ function filteredCats() {
 // ---------------- 视图切换 ----------------
 function showMainView() {
   els.detailView.classList.add("hidden");
+  els.dock.classList.remove("hidden");
   els.catBar.classList.remove("hidden");
   document.body.classList.remove("no-cat");
   if (state.mode === "tree") {
     els.listView.classList.add("hidden");
     els.treeView.classList.remove("hidden");
-    document.body.classList.add("stage-tree");
-    document.body.classList.remove("stage-list");
   } else {
     els.treeView.classList.add("hidden");
     els.listView.classList.remove("hidden");
-    document.body.classList.remove("stage-tree");
-    document.body.classList.add("stage-list");
   }
 }
 
@@ -80,9 +143,9 @@ function showDetail() {
   els.treeView.classList.add("hidden");
   els.listView.classList.add("hidden");
   els.detailView.classList.remove("hidden");
+  els.dock.classList.add("hidden");
   els.catBar.classList.add("hidden");
   document.body.classList.add("no-cat");
-  document.body.classList.remove("stage-tree", "stage-list");
 }
 
 // ---------------- 树模式 ----------------
@@ -171,6 +234,30 @@ async function initData({ force = false } = {}) {
   else renderList();
 }
 
+// ---------------- 图片压缩（避免 localStorage 超限） ----------------
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxSide = 1600;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 // ---------------- 事件 ----------------
 function wire() {
   // —— 悬停信息卡 ——
@@ -188,14 +275,14 @@ function wire() {
     if (id) openDetail(id);
   });
 
-  // 显示方式（新闻树 / 新闻列表）
-  document.querySelectorAll(".dock-btn").forEach((b) => {
+  // 显示方式（新闻树 / 新闻列表）—— 树、列表都可切换
+  els.dock.querySelectorAll(".dock-btn").forEach((b) => {
     b.addEventListener("click", () => {
       const m = b.dataset.mode;
       if (m === state.mode) return;
       state.mode = m;
       save();
-      document.querySelectorAll(".dock-btn").forEach((x) => x.classList.toggle("active", x.dataset.mode === m));
+      els.dock.querySelectorAll(".dock-btn").forEach((x) => x.classList.toggle("active", x.dataset.mode === m));
       showMainView();
       if (m === "list") renderList();
       else requestAnimationFrame(() => tree.fit(true));
@@ -274,11 +361,61 @@ function wire() {
   window.addEventListener("resize", () => {
     if (state.mode === "tree" && !els.treeView.classList.contains("hidden")) tree.fit();
   });
+
+  // —— 背景与外观 ——
+  els.bgBtn.addEventListener("click", () => els.bgSettings.classList.toggle("hidden"));
+  els.bgSettingsClose.addEventListener("click", () => els.bgSettings.classList.add("hidden"));
+  document.addEventListener("pointerdown", (e) => {
+    if (els.bgSettings.classList.contains("hidden")) return;
+    if (els.bgSettings.contains(e.target) || els.bgBtn.contains(e.target)) return;
+    els.bgSettings.classList.add("hidden");
+  });
+
+  els.bgThemeBtns.forEach((b) => {
+    b.addEventListener("click", () => {
+      state.bg.theme = b.dataset.theme;
+      saveBg();
+      applyBg();
+    });
+  });
+
+  els.bgDim.addEventListener("input", () => {
+    state.bg.dim = Number(els.bgDim.value) / 100;
+    saveBg();
+    applyBg();
+  });
+
+  els.bgUploadBtn.addEventListener("click", () => els.bgFile.click());
+  els.bgFile.addEventListener("change", async () => {
+    const file = els.bgFile.files && els.bgFile.files[0];
+    els.bgFile.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 12 * 1024 * 1024) return;
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setBgPhoto(dataUrl);
+    } catch {}
+  });
+
+  els.bgUrlApply.addEventListener("click", () => {
+    const url = els.bgUrlInput.value.trim();
+    if (!url) return;
+    els.bgUrlInput.value = "";
+    setBgPhoto(url);
+  });
+
+  els.bgPhotoRemove.addEventListener("click", () => {
+    state.bg.photo = null;
+    saveBg();
+    applyBg();
+  });
 }
 
 // ---------------- 启动 ----------------
 (async function boot() {
   wire();
+  applyBg();
+  if (state.bg.photo) markPhotoReady();
   const match = location.pathname.match(/^\/detail\/([0-9a-z]+)$/i);
   if (match) {
     showDetail();
@@ -293,6 +430,6 @@ function wire() {
 
 // 便于调试 / 自检
 window.__newsTree = {
-  state: () => ({ mode: state.mode, cat: state.cat, items: state.items.length, cats: state.data?.length }),
+  state: () => ({ mode: state.mode, cat: state.cat, items: state.items.length, cats: state.data?.length, bg: state.bg }),
   tree
 };
