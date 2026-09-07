@@ -35,7 +35,7 @@
 - 树模式交互：悬停（标题/来源/时间/热度）进详情、整树拖拽、滚轮/双指缩放、一键适应
 - 真实分类导航（全部 / 综合 / 科技 / 数码 / AI / 游戏 / 腾讯 / 头条 / 抖音 / B站 / 微博），切换自动重排
 - 背景与外观：多主题 + 用户上传图片背景
-- 部署：本地 Express 或 Cloudflare Pages(Functions)，见 `DEPLOY.md`
+- 部署：本地 Express 或 Cloudflare Workers(Static Assets)，见 `DEPLOY.md`
 - 响应式布局（桌面优先，兼容平板与手机）
 
 ## 目录结构
@@ -46,18 +46,18 @@
 │   ├── index.html
 │   ├── style.css
 │   ├── favicon.svg
-│   ├── _redirects         # SPA 深链回落（Cloudflare Pages）
 │   └── js/                # 前端模块（原生 ES Modules，无框架）
 │       ├── app.js         # 入口：树/列表/热榜、分类、详情、刷新、路由
 │       ├── news-store.js  # 数据层：API 获取、缓存、新闻→树模型
 │       ├── tree-view.js   # 树布局 + SVG 渲染 + 交互（悬停/拖拽/缩放/动画）
 │       ├── views.js       # 列表、热榜、详情、悬停卡
 │       └── helpers.js     # 公共工具
-├── functions/api/         # Cloudflare Pages Functions（/api/news、/api/news/:id、/api/health）
-├── lib/news-core.mjs      # 统一抓取/去重/热度引擎（本地 server 与 Functions 共用）
+├── src/index.js           # Cloudflare Worker：/api/* + SPA 深链回落
+├── lib/news-core.mjs      # 统一抓取/去重/热度引擎（本地 server 与 Worker 共用）
 ├── server.js              # 本地开发 Express 服务
+├── wrangler.jsonc         # Cloudflare Worker Static Assets 配置
 ├── package.json
-├── DEPLOY.md              # GitHub → Cloudflare Pages 自动部署说明
+├── DEPLOY.md              # GitHub → Cloudflare 自动部署说明
 └── README.md
 ```
 
