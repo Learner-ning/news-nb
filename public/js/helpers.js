@@ -41,17 +41,27 @@ export function fmtFull(t) {
 
 // —— 分类颜色：已知分类固定色，未知分类取调色板（稳定、可读）——
 const KNOWN = {
-  "综合": "#3ec5c0",
-  "科技": "#8f9dff",
+  "综合": "#2dd4bf",
+  "科技": "#a78bfa",
   "数码": "#4ade80",
-  "AI": "#c084fc",
+  "AI": "#f472b6",
+  "游戏": "#fb923c",
   "财经": "#fbbf24",
   "国际": "#60a5fa",
-  "国内": "#f472b6",
-  "体育": "#fb923c",
-  "娱乐": "#f87171"
+  "国内": "#fb7185",
+  "体育": "#a3e635",
+  "娱乐": "#e879f9",
+  "互联网": "#94a3f8",
+  "汽车": "#38bdf8",
+  "科学": "#5eead4",
+  "开发者": "#67e8f9",
+  "腾讯": "#22d3ee",
+  "头条": "#fb7185",
+  "抖音": "#4ade80",
+  "B站": "#c084fc",
+  "微博": "#facc15"
 };
-const PALETTE = ["#3ec5c0", "#8f9dff", "#4ade80", "#c084fc", "#fbbf24", "#60a5fa", "#f472b6", "#fb923c", "#f87171", "#34d399", "#a3e635"];
+const PALETTE = ["#2dd4bf", "#a78bfa", "#4ade80", "#f472b6", "#fbbf24", "#60a5fa", "#fb7185", "#fb923c", "#e879f9", "#34d399", "#a3e635", "#38bdf8"];
 
 const seenTag = new Map();
 export function colorFor(tag) {
@@ -61,7 +71,7 @@ export function colorFor(tag) {
 }
 
 // 底部分类导航的稳定顺序：已知分类置前，其余按首次出现追加
-const TAG_ORDER = ["综合", "科技", "数码", "AI", "财经", "国际", "国内", "体育", "娱乐"];
+const TAG_ORDER = ["综合", "科技", "数码", "AI", "游戏", "财经", "国际", "国内", "体育", "娱乐", "互联网", "汽车", "科学", "开发者"];
 export function orderTags(tags) {
   const known = TAG_ORDER.filter((t) => tags.includes(t));
   const rest = tags.filter((t) => !TAG_ORDER.includes(t));

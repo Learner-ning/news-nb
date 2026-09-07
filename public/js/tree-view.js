@@ -83,7 +83,11 @@ export class TreeView {
   leafW(item) {
     if (!this._leafW.has(item.id)) {
       const len = String(item.title || "").length;
-      this._leafW.set(item.id, Math.max(104, Math.min(186, 96 + len * 2.7)));
+      let w = Math.max(96, Math.min(190, 88 + len * 2.8));
+      // 热度影响叶片宽度（视觉权重）
+      const heat = Number(item.heatScore);
+      if (Number.isFinite(heat) && heat > 0) w = w * (0.86 + heat * 0.55);
+      this._leafW.set(item.id, Math.max(94, Math.min(232, Math.round(w))));
     }
     return this._leafW.get(item.id);
   }
@@ -260,8 +264,10 @@ export class TreeView {
       for (let si = 0; si < c.sources.length; si++) {
         const s = c.sources[si];
         for (const leaf of s.leaves) {
+          const heat = Number(leaf.item.heatScore) || 0.5;
+          const cls = "leaf" + (heat >= 0.6 ? " hot" : heat <= 0.36 ? " cool" : "");
           const g = svgEl("g", {
-            cls: "leaf", "data-leaf": leaf.id, "data-cat": c.key, "data-src": si,
+            cls, "data-leaf": leaf.id, "data-cat": c.key, "data-src": si,
             style: `--c:${c.color};--d:${430 + ci * 80 + si * 56}ms`
           });
           g.appendChild(svgEl("rect", {

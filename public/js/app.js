@@ -1,4 +1,4 @@
-// 新闻树应用入口：装配视图模式（树/列表）、真实分类、详情、刷新、路由与背景外观
+// 新闻树应用入口：树/列表/热榜三视图 + 分类 + 热度排序 + 详情 + 背景外观 + 路由
 import { loadNews, getState, getTags, buildTreeModel, getUpdatedLabel } from "./news-store.js";
 import { TreeView } from "./tree-view.js";
 import { colorFor } from "./helpers.js";
@@ -9,9 +9,12 @@ const $ = (s) => document.querySelector(s);
 const els = {
   treeView: $("#view-tree"),
   listView: $("#view-list"),
+  boardView: $("#view-board"),
   detailView: $("#view-detail"),
   treeSvg: $("#tree-svg"),
   newsList: $("#news-list"),
+  boardList: $("#board-list"),
+  boardMeta: $("#board-meta"),
   listTitle: $("#list-title"),
   listMeta: $("#list-meta"),
   detailContent: $("#detail-content"),
@@ -56,10 +59,13 @@ function loadBg() {
 
 const state = {
   mode: (() => {
-    try { return localStorage.getItem("nt.mode") === "list" ? "list" : "tree"; } catch { return "tree"; }
+    try { return ["tree", "list", "board"].includes(localStorage.getItem("nt.mode")) ? localStorage.getItem("nt.mode") : "tree"; } catch { return "tree"; }
   })(),
   cat: (() => {
     try { return localStorage.getItem("nt.cat") || "all"; } catch { return "all"; }
+  })(),
+  sort: (() => {
+    try { return localStorage.getItem("nt.sort") === "time" ? "time" : "heat"; } catch { return "heat"; }
   })(),
   bg: loadBg(),
   data: null,  // 完整树模型（未筛选）
@@ -72,6 +78,7 @@ function save() {
   try {
     localStorage.setItem("nt.mode", state.mode);
     localStorage.setItem("nt.cat", state.cat);
+    localStorage.setItem("nt.sort", state.sort);
   } catch {}
 }
 function saveBg() {
@@ -118,52 +125,68 @@ function setStatus() {
   els.topStatus.textContent = `${st.items.length} 条 · ${label} 更新${st.stale ? " · 缓存" : ""}${st.errors?.length ? " · 部分源不可用" : ""}`;
 }
 
-function filteredCats() {
+function flatFiltered() {
   const all = state.data || [];
-  if (state.cat === "all") return all;
-  return all.filter((c) => c.key === state.cat);
+  const cats = state.cat === "all" ? all : all.filter((c) => c.key === state.cat);
+  return cats.flatMap((c) => c.sources.flatMap((s) => s.items));
 }
 
-// ---------------- 视图切换 ----------------
+// ---------------- 视图切换（树/列表/热榜/详情） ----------------
 function showMainView() {
   els.detailView.classList.add("hidden");
   els.dock.classList.remove("hidden");
   els.catBar.classList.remove("hidden");
   document.body.classList.remove("no-cat");
-  if (state.mode === "tree") {
-    els.listView.classList.add("hidden");
-    els.treeView.classList.remove("hidden");
-  } else {
-    els.treeView.classList.add("hidden");
-    els.listView.classList.remove("hidden");
-  }
+  els.treeView.classList.toggle("hidden", state.mode !== "tree");
+  els.listView.classList.toggle("hidden", state.mode !== "list");
+  els.boardView.classList.toggle("hidden", state.mode !== "board");
 }
 
 function showDetail() {
   els.treeView.classList.add("hidden");
   els.listView.classList.add("hidden");
+  els.boardView.classList.add("hidden");
   els.detailView.classList.remove("hidden");
   els.dock.classList.add("hidden");
   els.catBar.classList.add("hidden");
   document.body.classList.add("no-cat");
 }
 
-// ---------------- 树模式 ----------------
+// ---------------- 三个视图的渲染 ----------------
 function rebuildTree() {
-  const cats = filteredCats();
+  const cats = state.data || [];
+  const shown = state.cat === "all" ? cats : cats.filter((c) => c.key === state.cat);
   els.treeHint.textContent =
-    cats.length ? "拖动移动 · 滚轮/捏合缩放 · 悬停叶片看新闻 · 点击进详情"
+    shown.length ? "拖动移动 · 滚轮/捏合缩放 · 悬停叶片看新闻 · 点击进详情"
       : "新闻源暂时不可用，请稍后刷新。";
-  tree.build(cats);
+  tree.build(shown);
 }
 
-// ---------------- 列表模式 ----------------
 function renderList() {
-  const cats = filteredCats();
-  const items = cats.flatMap((c) => c.sources.flatMap((s) => s.items));
+  const items = [...flatFiltered()];
+  if (state.sort === "time") {
+    items.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+  } else {
+    // 默认：热度 + 时间衰减（heatScore 已含时间衰减）
+    items.sort((a, b) => (b.heatScore || 0) - (a.heatScore || 0));
+  }
   els.listTitle.textContent = state.cat === "all" ? "全部新闻" : `${state.cat} · 新闻列表`;
   views.renderListMeta(els.listMeta, items);
   views.renderList(els.newsList, items);
+  syncSortPills();
+}
+
+function renderBoard() {
+  const items = [...flatFiltered()];
+  items.sort((a, b) => (b.heatScore || 0) - (a.heatScore || 0));
+  views.setBoardMeta(els.boardMeta, items);
+  views.renderBoard(els.boardList, items.slice(0, 20));
+}
+
+function syncSortPills() {
+  document.querySelectorAll(".sort-pill").forEach((p) => {
+    p.classList.toggle("active", p.dataset.sort === state.sort);
+  });
 }
 
 // ---------------- 详情（沿用现有跳转逻辑） ----------------
@@ -220,7 +243,8 @@ function pickCat(key) {
     b.setAttribute("aria-pressed", on ? "true" : "false");
   });
   if (state.mode === "tree") rebuildTree();
-  else renderList();
+  else if (state.mode === "list") renderList();
+  else renderBoard();
 }
 
 // ---------------- 数据加载 ----------------
@@ -231,7 +255,8 @@ async function initData({ force = false } = {}) {
   state.data = buildTreeModel(state.items);
   renderCatBar();
   if (state.mode === "tree") rebuildTree();
-  else renderList();
+  else if (state.mode === "list") renderList();
+  else renderBoard();
 }
 
 // ---------------- 图片压缩（避免 localStorage 超限） ----------------
@@ -275,7 +300,7 @@ function wire() {
     if (id) openDetail(id);
   });
 
-  // 显示方式（新闻树 / 新闻列表）—— 树、列表都可切换
+  // 显示方式（新闻树 / 新闻列表 / 热榜）
   els.dock.querySelectorAll(".dock-btn").forEach((b) => {
     b.addEventListener("click", () => {
       const m = b.dataset.mode;
@@ -284,12 +309,18 @@ function wire() {
       save();
       els.dock.querySelectorAll(".dock-btn").forEach((x) => x.classList.toggle("active", x.dataset.mode === m));
       showMainView();
-      if (m === "list") {
-        renderList();
-      } else {
-        // 若页面以列表模式启动，树从未构建过，切回时需真正生成树
-        rebuildTree();
-      }
+      if (m === "tree") rebuildTree();
+      else if (m === "list") renderList();
+      else renderBoard();
+    });
+  });
+
+  // 列表排序
+  document.querySelectorAll(".sort-pill").forEach((p) => {
+    p.addEventListener("click", () => {
+      state.sort = p.dataset.sort;
+      save();
+      renderList();
     });
   });
 
@@ -311,20 +342,24 @@ function wire() {
     if (btn) pickCat(btn.dataset.cat);
   });
 
-  // 列表点击 / 键盘
-  els.newsList.addEventListener("click", (e) => {
-    const c = e.target.closest(".row-item[data-id]");
-    if (c) openDetail(c.dataset.id);
-  });
-  els.newsList.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
+  // 列表 / 热榜点击与键盘
+  const openFrom = (container) => {
+    container.addEventListener("click", (e) => {
       const c = e.target.closest(".row-item[data-id]");
-      if (c) {
-        e.preventDefault();
-        openDetail(c.dataset.id);
+      if (c) openDetail(c.dataset.id);
+    });
+    container.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        const c = e.target.closest(".row-item[data-id]");
+        if (c) {
+          e.preventDefault();
+          openDetail(c.dataset.id);
+        }
       }
-    }
-  });
+    });
+  };
+  openFrom(els.newsList);
+  openFrom(els.boardList);
 
   // 详情返回 / 品牌回首页
   els.backBtn.addEventListener("click", () => {
@@ -420,6 +455,7 @@ function wire() {
   wire();
   applyBg();
   if (state.bg.photo) markPhotoReady();
+  syncSortPills();
   const match = location.pathname.match(/^\/detail\/([0-9a-z]+)$/i);
   if (match) {
     showDetail();
@@ -428,12 +464,12 @@ function wire() {
   } else {
     showMainView();
     await initData();
-    requestAnimationFrame(() => requestAnimationFrame(() => tree.fit()));
+    if (state.mode === "tree") requestAnimationFrame(() => requestAnimationFrame(() => tree.fit()));
   }
 })();
 
 // 便于调试 / 自检
 window.__newsTree = {
-  state: () => ({ mode: state.mode, cat: state.cat, items: state.items.length, cats: state.data?.length, bg: state.bg }),
+  state: () => ({ mode: state.mode, cat: state.cat, sort: state.sort, items: state.items.length, cats: state.data?.length }),
   tree
 };

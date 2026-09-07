@@ -102,6 +102,7 @@
           <span class="hc-time" id="hc-time"></span>
         </div>
         <div class="hc-title" id="hc-title"></div>
+        <div class="hc-heat" id="hc-heat"></div>
         <div class="hc-summary" id="hc-summary"></div>
         <div class="hc-actions">
           <button class="hc-open" id="hc-open">查看详情 →</button>
@@ -115,9 +116,22 @@
     <section id="view-list" class="view list-view hidden" aria-label="新闻列表视图">
       <div class="lv-head">
         <div class="lv-title" id="list-title">全部新闻</div>
+        <div class="lv-sorts" role="group" aria-label="列表排序">
+          <button class="sort-pill active" data-sort="heat">热度</button>
+          <button class="sort-pill" data-sort="time">时间</button>
+        </div>
         <div class="lv-meta" id="list-meta"></div>
       </div>
       <div id="news-list" class="news-list"></div>
+    </section>
+
+    <!-- ======== 热榜模式 ======== -->
+    <section id="view-board" class="view board-view hidden" aria-label="全站热榜">
+      <div class="lv-head">
+        <div class="lv-title">🔥 全站热榜</div>
+        <div class="lv-meta" id="board-meta"></div>
+      </div>
+      <div id="board-list" class="board-list"></div>
     </section>
 
     <!-- ======== 详情视图 ======== -->
@@ -128,7 +142,7 @@
       </article>
     </section>
 
-    <!-- 左侧：显示方式（树 / 列表都可切换，全局可见） -->
+    <!-- 左侧：显示方式（树 / 列表 / 热榜，全局可见） -->
     <div class="left-dock" role="group" aria-label="显示方式">
       <div class="dock-title">显示方式</div>
       <button class="dock-btn active" data-mode="tree" title="以新闻树方式浏览">
@@ -136,6 +150,9 @@
       </button>
       <button class="dock-btn" data-mode="list" title="以新闻列表方式浏览">
         <span class="db-ico">☰</span><span>新闻列表</span>
+      </button>
+      <button class="dock-btn" data-mode="board" title="全站热榜">
+        <span class="db-ico">🔥</span><span>热榜</span>
       </button>
     </div>
   </main>
