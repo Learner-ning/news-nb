@@ -6,12 +6,12 @@
 //
 // 布局由数据驱动、结果稳定：同一批新闻生成基本相同的树，无随机散点。
 // 平移/缩放只改 #world 的 transform；只有数据或分类变化才重新布局。
-import { textWidth, timeAgo } from "./helpers.js";
+import { textWidth } from "./helpers.js";
 
 const NS = "http://www.w3.org/2000/svg";
 
 // —— 逻辑几何参数（y 向下：树向上长，故叶片在最上方）——
-const PILL_H = 56;        // 叶片卡片高度
+const PILL_H = 44;        // 叶片卡片高度（纯标题）
 const ROW_TOP = 84;       // 最顶一排叶片卡片底部 y
 const ROW_STEP = 96;      // 相邻两排枝头（一列叶片排）间距
 const ROW_GAP = 12;       // 同一排相邻叶片间隙
@@ -265,15 +265,12 @@ export class TreeView {
             style: `--c:${c.color};--d:${430 + ci * 80 + si * 56}ms`
           });
           g.appendChild(svgEl("rect", {
-            x: leaf.x - leaf.w / 2, y: leaf.topY - PILL_H, width: leaf.w, height: PILL_H, rx: 11, cls: "leaf-pill"
+            x: leaf.x - leaf.w / 2, y: leaf.topY - PILL_H, width: leaf.w, height: PILL_H, rx: 10, cls: "leaf-pill"
           }));
+          // 纯标题叶片：只显示新闻标题
           g.appendChild(svgEl("text", {
-            x: leaf.x, y: leaf.topY - PILL_H + 22, "text-anchor": "middle",
-            cls: "leaf-title", text: truncateByWidth(leaf.item.title, leaf.w, 12.6)
-          }));
-          g.appendChild(svgEl("text", {
-            x: leaf.x, y: leaf.topY - PILL_H + 40, "text-anchor": "middle",
-            cls: "leaf-meta", text: truncateByWidth(`${leaf.item.source} · ${timeAgo(leaf.item.time)}`, leaf.w, 9.5)
+            x: leaf.x, y: leaf.topY - Math.round(PILL_H / 2) + 4.5, "text-anchor": "middle",
+            cls: "leaf-title", text: truncateByWidth(leaf.item.title, leaf.w, 13)
           }));
           passLeaves.appendChild(g);
           this.leafElm.set(leaf.id, { g, item: leaf.item });

@@ -1,38 +1,20 @@
 // 列表模式 + 详情视图 + 悬停卡：与树模式共用同一份真实数据与跳转逻辑
 import { esc, timeAgo, fmtFull } from "./helpers.js";
 
-const SKELETON = '<div class="skeleton"></div>'.repeat(4);
-
-export function renderList(container, items, catName) {
+export function renderList(container, items) {
   if (!items.length) {
-    container.innerHTML = '<div class="card empty">暂时没有新闻，请稍后刷新。</div>';
+    container.innerHTML = '<div class="list-empty">暂时没有新闻，请稍后刷新。</div>';
     return;
   }
-  // 同数据源按来源分组显示
-  const groups = new Map();
-  for (const it of items) {
-    if (!groups.has(it.source)) groups.set(it.source, []);
-    groups.get(it.source).push(it);
-  }
-  container.innerHTML = [...groups.entries()]
-    .map(([source, list]) => `
-      <section class="lg">
-        <h3 class="lg-name">${esc(source)}<span class="lg-count">${list.length}</span></h3>
-        <div class="lg-cards">
-          ${list.map((x) => card(x)).join("")}
-        </div>
-      </section>`)
+  // 纯标题列表：每一行只有新闻标题，点击进入详情
+  container.innerHTML = items
+    .map(
+      (x) => `
+      <article class="row-item" data-id="${esc(x.id)}" role="button" tabindex="0">
+        <span class="ri-title">${esc(x.title)}</span>
+      </article>`
+    )
     .join("");
-}
-
-function card(x) {
-  return `
-  <article class="card" data-id="${esc(x.id)}" role="button" tabindex="0">
-    <div class="tag">${esc(x.tag)} · ${esc(x.source)}</div>
-    <div class="title">${esc(x.title)}</div>
-    <div class="summary">${esc(x.summary || "")}</div>
-    <div class="foot"><span>${timeAgo(x.time)}</span><span class="go">查看详情 →</span></div>
-  </article>`;
 }
 
 export function renderListMeta(elm, items) {

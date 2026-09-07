@@ -313,12 +313,12 @@ function wire() {
 
   // 列表点击 / 键盘
   els.newsList.addEventListener("click", (e) => {
-    const c = e.target.closest(".card[data-id]");
+    const c = e.target.closest(".row-item[data-id]");
     if (c) openDetail(c.dataset.id);
   });
   els.newsList.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
-      const c = e.target.closest(".card[data-id]");
+      const c = e.target.closest(".row-item[data-id]");
       if (c) {
         e.preventDefault();
         openDetail(c.dataset.id);
