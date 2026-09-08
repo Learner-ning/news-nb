@@ -142,9 +142,12 @@
       </article>
     </section>
 
-    <!-- 左侧：显示方式（树 / 列表 / 热榜，全局可见） -->
-    <div class="left-dock" role="group" aria-label="显示方式">
-      <div class="dock-title">显示方式</div>
+    <!-- 左侧：显示方式（树 / 列表 / 热榜，可折叠，全局可见） -->
+    <div class="left-dock" role="group" aria-label="显示方式" id="left-dock">
+      <div class="dock-head">
+        <div class="dock-title">显示方式</div>
+        <button id="dock-collapse" class="dock-toggle" title="折叠面板" aria-label="折叠显示方式面板">‹</button>
+      </div>
       <button class="dock-btn active" data-mode="tree" title="以新闻树方式浏览">
         <span class="db-ico">◧</span><span>新闻树</span>
       </button>
@@ -155,6 +158,12 @@
         <span class="db-ico">🔥</span><span>热榜</span>
       </button>
     </div>
+
+    <!-- 折叠后的展开按钮（悬停在屏幕左缘） -->
+    <button id="dock-reopen" class="dock-reopen hidden" title="展开显示方式面板" aria-label="展开显示方式面板">
+      <span class="dr-ico">☰</span>
+      <span class="dr-txt">显示方式</span>
+    </button>
   </main>
 
   <!-- 底部：真实分类导航 -->

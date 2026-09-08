@@ -269,16 +269,44 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 }
 .leaf:hover .leaf-title, .leaf.active .leaf-title { fill: #fff; }
 
-/* —— 全局显示方式面板（树/列表都可见） —— */
+/* —— 全局显示方式面板（树/列表都可见，可折叠） —— */
 .left-dock {
   position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; gap: 6px;
   background: var(--glass); border: 1px solid var(--line);
-  border-radius: 14px; padding: 10px 8px; z-index: 20;
+  border-radius: 14px; padding: 8px; z-index: 20;
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 28px rgba(0, 0, 0, .25);
 }
-.dock-title { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-align: center; margin-bottom: 2px; }
+.dock-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; width: 100%; margin-bottom: 2px; padding: 2px 2px 0;
+}
+.dock-title { font-size: 10px; letter-spacing: 2px; color: var(--muted); }
+.dock-toggle {
+  background: none; border: 0; color: var(--muted); cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 1px 5px 2px; border-radius: 6px;
+}
+.dock-toggle:hover { color: var(--ink); background: rgba(150, 180, 255, .14); }
+
+/* 折叠状态：隐藏面板，显示左缘展开把手 */
+body.dock-off .left-dock { display: none; }
+.dock-reopen {
+  position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+  z-index: 20;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: var(--glass); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 5px; cursor: pointer;
+  color: var(--muted); backdrop-filter: blur(10px);
+  transition: .16s;
+}
+.dock-reopen:hover { color: var(--ink); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.dock-reopen .dr-ico { font-size: 15px; color: var(--accent); }
+.dock-reopen .dr-txt {
+  font-size: 9px; letter-spacing: 2px; color: inherit;
+  writing-mode: vertical-rl; text-orientation: mixed;
+}
+.dock-reopen.hidden { display: none; }
 .dock-btn {
   display: flex; align-items: center; gap: 7px;
   border: 0; background: transparent; color: var(--muted);

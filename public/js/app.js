@@ -27,6 +27,8 @@ const els = {
   hoverCard: $("#hover-card"),
   treeHint: $("#tree-hint"),
   dock: document.querySelector(".left-dock"),
+  dockCollapse: $("#dock-collapse"),
+  dockReopen: $("#dock-reopen"),
   // 背景与外观
   bg: $("#bg"),
   bgPhoto: $("#bg-photo"),
@@ -67,6 +69,9 @@ const state = {
   sort: (() => {
     try { return localStorage.getItem("nt.sort") === "time" ? "time" : "heat"; } catch { return "heat"; }
   })(),
+  dockOpen: (() => {
+    try { return localStorage.getItem("nt.dock") !== "off"; } catch { return true; }
+  })(),
   bg: loadBg(),
   data: null,  // 完整树模型（未筛选）
   items: []
@@ -79,6 +84,7 @@ function save() {
     localStorage.setItem("nt.mode", state.mode);
     localStorage.setItem("nt.cat", state.cat);
     localStorage.setItem("nt.sort", state.sort);
+    localStorage.setItem("nt.dock", state.dockOpen ? "on" : "off");
   } catch {}
 }
 function saveBg() {
@@ -131,12 +137,21 @@ function flatFiltered() {
   return cats.flatMap((c) => c.sources.flatMap((s) => s.items));
 }
 
+// ---------------- 左侧面板折叠 ----------------
+function setDockState() {
+  const off = !state.dockOpen;
+  document.body.classList.toggle("dock-off", off);
+  // 展开状态显示面板；折叠状态显示左缘把手
+  els.dockReopen.classList.toggle("hidden", !off);
+}
+
 // ---------------- 视图切换（树/列表/热榜/详情） ----------------
 function showMainView() {
   els.detailView.classList.add("hidden");
   els.dock.classList.remove("hidden");
   els.catBar.classList.remove("hidden");
   document.body.classList.remove("no-cat");
+  setDockState();
   els.treeView.classList.toggle("hidden", state.mode !== "tree");
   els.listView.classList.toggle("hidden", state.mode !== "list");
   els.boardView.classList.toggle("hidden", state.mode !== "board");
@@ -148,6 +163,7 @@ function showDetail() {
   els.boardView.classList.add("hidden");
   els.detailView.classList.remove("hidden");
   els.dock.classList.add("hidden");
+  els.dockReopen.classList.add("hidden");
   els.catBar.classList.add("hidden");
   document.body.classList.add("no-cat");
 }
@@ -313,6 +329,18 @@ function wire() {
       else if (m === "list") renderList();
       else renderBoard();
     });
+  });
+
+  // 左侧面板折叠 / 展开
+  els.dockCollapse.addEventListener("click", () => {
+    state.dockOpen = false;
+    save();
+    setDockState();
+  });
+  els.dockReopen.addEventListener("click", () => {
+    state.dockOpen = true;
+    save();
+    setDockState();
   });
 
   // 列表排序
