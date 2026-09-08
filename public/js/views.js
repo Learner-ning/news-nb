@@ -1,10 +1,27 @@
-// 列表 / 热榜 / 详情 / 悬停卡：与树模式共用同一份真实数据与跳转逻辑
-import { esc, timeAgo, fmtFull } from "./helpers.js";
+// 视图层：新闻卡片列表 / 平台分组热榜 / 详情 / 悬停卡
+// 所有视图共用同一份真实数据与点击→详情跳转逻辑
+import { esc, timeAgo, fmtFull, colorFor } from "./helpers.js";
 
-function row(x) {
+function heatText(x) {
+  const h = Math.round((x.heatScore || 0) * 100);
+  return x.dupCount > 1 ? `热度 ${h}% · 多源×${x.dupCount}` : `热度 ${h}%`;
+}
+
+// ---------- 新闻卡片列表（统一卡片：仅标题 + 基础信息，不展示正文） ----------
+function card(x) {
   return `
-  <article class="row-item" data-id="${esc(x.id)}" role="button" tabindex="0">
-    <span class="ri-title">${esc(x.title)}</span>
+  <article class="ncard" data-id="${esc(x.id)}" role="button" tabindex="0">
+    <div class="nc-line">
+      <span class="nc-cat" style="--c:${colorFor(x.tag)}">${esc(x.tag)}</span>
+      <span class="nc-src">${esc(x.source)}</span>
+      <span class="nc-time">${timeAgo(x.time)}</span>
+      ${x.hotRank ? `<span class="nc-hotrank">热榜#${x.hotRank}</span>` : ""}
+    </div>
+    <h3 class="nc-title">${esc(x.title)}</h3>
+    <div class="nc-foot">
+      <span class="nc-heat">🔥 ${heatText(x)}</span>
+      <span class="nc-go">查看详情 →</span>
+    </div>
   </article>`;
 }
 
@@ -13,42 +30,69 @@ export function renderList(container, items) {
     container.innerHTML = '<div class="list-empty">暂时没有新闻，请稍后刷新。</div>';
     return;
   }
-  // 纯标题列表：一行一条标题，点击进入详情；排序由调用方按 热度/时间 决定
-  container.innerHTML = items.map(row).join("");
+  container.innerHTML = items.map(card).join("");
 }
 
 export function renderListMeta(elm, items) {
-  elm.textContent = `${items.length} 条新闻`;
+  elm.textContent = `${items.length} 条`;
 }
 
-// ---------- 全站热榜（TOP 20，统一 heatScore） ----------
-export function renderBoard(container, topItems) {
-  if (!topItems.length) {
-    container.innerHTML = '<div class="list-empty">暂无数据，请稍后刷新。</div>';
+// ---------- 热榜：按平台分组 + 排名视觉层级 ----------
+export function groupHotByPlatform(items) {
+  const map = new Map();
+  for (const it of items) {
+    if (!it.platform) continue;
+    if (!map.has(it.platform)) map.set(it.platform, []);
+    map.get(it.platform).push(it);
+  }
+  return [...map.entries()].map(([platform, list]) => ({
+    platform,
+    items: list.sort((a, b) => (a.rank || 999) - (b.rank || 999))
+  }));
+}
+
+function hotRow(x, i) {
+  const heat = Math.round((x.heatScore || 0) * 100);
+  const topCls = i < 3 ? ` top${i + 1}` : "";
+  const extra = [
+    x.hotTag ? `<span class="b-hot">${esc(x.hotTag)}</span>` : "",
+    x.praise ? `<span class="b-hot">赞 ${x.praise}</span>` : "",
+    x.discuss ? `<span class="b-hot">讨论 ${x.discuss}</span>` : ""
+  ].join("");
+  return `
+  <article class="row-item board-row${topCls}" data-id="${esc(x.id)}" role="button" tabindex="0">
+    <span class="b-rank${topCls}">${i + 1}</span>
+    <span class="b-main">
+      <span class="ri-title">${esc(x.title)}</span>
+      <span class="b-meta">${esc(x.source)} · ${esc(x.tag)} · ${timeAgo(x.time)}${extra}</span>
+    </span>
+    <span class="b-heat"><i class="b-bar" style="--w:${heat}%"></i><b>${heat}</b></span>
+  </article>`;
+}
+
+export function renderBoard(container, groups, { limit = 10, active = null } = {}) {
+  if (!groups.length) {
+    container.innerHTML = '<div class="list-empty">当前分类暂无热搜数据，可切换到「全部」分类，或稍后刷新。</div>';
     return;
   }
-  container.innerHTML = topItems
-    .map((x, i) => {
-      const heat = Number(x.heatScore || 0);
-      const pct = Math.round(heat * 100);
-      const dup = (x.dupCount || 1) > 1 ? `<span class="b-dup">多源报道×${x.dupCount}</span>` : "";
-      const hotTag = x.hotTag ? `<span class="b-hot">${esc(x.hotTag)}</span>` : "";
+  const shown = active ? groups.filter((g) => g.platform === active) : groups;
+  container.innerHTML = shown
+    .map((g) => {
+      const n = active ? Math.max(limit, 20) : limit;
+      const rows = g.items.slice(0, n).map((x, i) => hotRow(x, i)).join("");
       return `
-      <article class="row-item board-row" data-id="${esc(x.id)}" role="button" tabindex="0">
-        <span class="b-rank ${i < 3 ? "top" : ""}">${i + 1}</span>
-        <span class="b-main">
-          <span class="ri-title">${esc(x.title)}</span>
-          <span class="b-meta">${esc(x.source)} · ${esc(x.tag)} · ${timeAgo(x.time)}${hotTag}</span>
-        </span>
-        <span class="b-heat"><i class="b-bar" style="--w:${pct}%"></i><b>${pct}</b></span>
-        ${dup}
-      </article>`;
+      <section class="lg hot-lg">
+        <h3 class="lg-name hot-plat" style="--c:${colorFor(g.items[0]?.tag || "国内")}">
+          <span>${esc(g.platform)}</span><span class="lg-count">Top${Math.min(g.items.length, n)}</span>
+        </h3>
+        <div class="hot-rows">${rows}</div>
+      </section>`;
     })
     .join("");
 }
 
-export function setBoardMeta(elm, items) {
-  elm.textContent = `${items.length} 条 · 按热度排序`;
+export function setBoardMeta(elm, groups, hotCount) {
+  elm.textContent = `${groups.length} 个平台 · ${hotCount} 条热搜 · 按平台实时排名`;
 }
 
 // ---------- 详情 ----------
@@ -68,7 +112,10 @@ export function showDetailError(container, onBack) {
 export function renderDetail(container, item) {
   const content = item.content || item.summary || "暂无详细内容，请点击下方按钮阅读原文。";
   const heat = Number(item.heatScore || 0);
-  const heatLine = heat > 0 ? `<div class="detail-heat">热度 <b>${Math.round(heat * 100)}%</b>${(item.dupCount || 1) > 1 ? ` · 多源报道×${item.dupCount}` : ""}</div>` : "";
+  const rankLine = item.hotRank ? ` · ${item.source}热搜第 ${item.hotRank} 位` : "";
+  const heatLine = heat > 0
+    ? `<div class="detail-heat">🔥 热度 <b>${Math.round(heat * 100)}%</b>${rankLine}${(item.dupCount || 1) > 1 ? ` · 多源报道×${item.dupCount}` : ""}</div>`
+    : "";
   container.innerHTML = `
     <div class="detail-tag">${esc(item.tag)} · ${esc(item.source)}</div>
     <h1 class="detail-title">${esc(item.title)}</h1>
@@ -94,16 +141,19 @@ export function renderDetail(container, item) {
   });
 }
 
-// ---------- 悬停信息卡（跟随在叶片附近，不占屏幕中央） ----------
+// ---------- 悬停信息卡（跟随在叶片附近） ----------
 export function fillHoverCard(cardEl, item) {
   const byId = (id) => cardEl.querySelector("#" + id);
   byId("hc-chip").textContent = `${item.tag} · ${item.source}`;
   byId("hc-time").textContent = timeAgo(item.time);
   byId("hc-title").textContent = item.title;
   const heat = Number(item.heatScore || 0);
-  const dup = (item.dupCount || 1) > 1 ? `多源报道×${item.dupCount}` : "";
-  byId("hc-heat").innerHTML = heat > 0
-    ? `<span class="hc-heatval"><i class="hc-bar" style="--w:${Math.round(heat * 100)}%"></i>热度 ${Math.round(heat * 100)}%</span>${dup ? `<span class="hc-dup">${dup}</span>` : ""}`
+  const parts = [];
+  if (heat > 0) parts.push(`热度 ${Math.round(heat * 100)}%`);
+  if (item.hotRank) parts.push(`${item.source}热搜#${item.hotRank}`);
+  if ((item.dupCount || 1) > 1) parts.push(`多源×${item.dupCount}`);
+  byId("hc-heat").innerHTML = parts.length
+    ? `<span class="hc-heatval"><i class="hc-bar" style="--w:${Math.round(heat * 100)}%"></i>${parts.join(" · ")}</span>`
     : "";
   byId("hc-summary").textContent = (item.summary || "").slice(0, 90);
 }

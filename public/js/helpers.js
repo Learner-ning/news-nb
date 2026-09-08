@@ -39,27 +39,13 @@ export function fmtFull(t) {
   }
 }
 
-// —— 分类颜色：已知分类固定色，未知分类取调色板（稳定、可读）——
+// —— 分类颜色：统一五大分类固定色；新分类通过配置扩展（取调色板兜底）——
 const KNOWN = {
-  "综合": "#2dd4bf",
   "科技": "#a78bfa",
-  "数码": "#4ade80",
-  "AI": "#f472b6",
-  "游戏": "#fb923c",
-  "财经": "#fbbf24",
-  "国际": "#60a5fa",
-  "国内": "#fb7185",
   "体育": "#a3e635",
-  "娱乐": "#e879f9",
-  "互联网": "#94a3f8",
-  "汽车": "#38bdf8",
-  "科学": "#5eead4",
-  "开发者": "#67e8f9",
-  "腾讯": "#22d3ee",
-  "头条": "#fb7185",
-  "抖音": "#4ade80",
-  "B站": "#c084fc",
-  "微博": "#facc15"
+  "国内": "#fb7185",
+  "影视": "#f472b6",
+  "财经": "#fbbf24"
 };
 const PALETTE = ["#2dd4bf", "#a78bfa", "#4ade80", "#f472b6", "#fbbf24", "#60a5fa", "#fb7185", "#fb923c", "#e879f9", "#34d399", "#a3e635", "#38bdf8"];
 
@@ -70,8 +56,8 @@ export function colorFor(tag) {
   return seenTag.get(tag);
 }
 
-// 底部分类导航的稳定顺序：已知分类置前，其余按首次出现追加
-const TAG_ORDER = ["综合", "科技", "数码", "AI", "游戏", "财经", "国际", "国内", "体育", "娱乐", "互联网", "汽车", "科学", "开发者"];
+// 底部分类导航的稳定顺序：与 lib/news-core.mjs 的 CATEGORIES 对齐（可扩展）
+const TAG_ORDER = ["科技", "体育", "国内", "影视", "财经"];
 export function orderTags(tags) {
   const known = TAG_ORDER.filter((t) => tags.includes(t));
   const rest = tags.filter((t) => !TAG_ORDER.includes(t));

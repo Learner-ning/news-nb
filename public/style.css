@@ -554,3 +554,81 @@ body.no-cat { --cat-h: 0px; }
   border: 1px solid var(--line); border-radius: 99px; padding: 5px 13px; margin: -12px 0 22px;
 }
 .detail-heat b { color: var(--accent); }
+
+/* ============================================================
+   v4：统一新闻卡片 + 平台分组热榜（覆盖早期简单列表样式）
+   ============================================================ */
+.news-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+.ncard {
+  display: flex; flex-direction: column; gap: 10px;
+  background: color-mix(in srgb, #101c38 92%, transparent);
+  border: 1px solid var(--line); border-radius: 14px;
+  padding: 15px 17px; min-height: 118px;
+  cursor: pointer; transition: .17s; position: relative; overflow: hidden;
+}
+.ncard::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--accent); opacity: 0; transition: .17s;
+}
+.ncard:hover, .ncard:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
+  outline: none;
+}
+.ncard:hover::before { opacity: 1; }
+.nc-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; }
+.nc-cat {
+  color: var(--c, var(--accent));
+  border: 1px solid color-mix(in srgb, var(--c, var(--accent)) 55%, transparent);
+  border-radius: 99px; padding: 1px 9px; font-weight: 700; font-size: 10.5px; letter-spacing: .5px;
+}
+.nc-src { color: var(--ink); font-weight: 600; }
+.nc-time { color: var(--muted); }
+.nc-hotrank { color: #ffd166; border: 1px solid rgba(255, 209, 102, .4); border-radius: 99px; padding: 0 7px; font-size: 10px; }
+.nc-title { margin: 0; font-size: 16.5px; font-weight: 700; line-height: 1.5; }
+.nc-foot {
+  margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  font-size: 11px; color: var(--muted);
+}
+.nc-heat { color: #ffb86b; }
+.nc-go { color: var(--accent); font-weight: 700; white-space: nowrap; }
+.ncard:active { transform: translateY(0); }
+
+/* 热榜平台筛选 */
+.board-plats {
+  max-width: 1080px; margin: 0 auto 14px;
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+}
+.board-plats::-webkit-scrollbar { display: none; }
+.plat-chip {
+  flex: none;
+  background: rgba(150, 180, 255, .07); border: 1px solid var(--line); color: var(--muted);
+  border-radius: 99px; padding: 7px 15px; font: 600 12.5px inherit; cursor: pointer; transition: .15s;
+}
+.plat-chip:hover { color: var(--ink); border-color: rgba(150, 180, 255, .5); }
+.plat-chip.active { color: #04201c; background: var(--accent); border-color: var(--accent); }
+
+/* 热榜分组 */
+.board-list { display: flex; flex-direction: column; gap: 18px; }
+.hot-lg { margin: 0; }
+.hot-plat { color: var(--c, var(--accent)); }
+.hot-plat span:first-child {
+  font-size: 16px;
+}
+.hot-rows { display: flex; flex-direction: column; gap: 6px; }
+
+/* 排名视觉层级：1/2/3 名突出 */
+.b-rank { font-variant-numeric: tabular-nums; }
+.board-row { position: relative; }
+.b-rank.top1 { color: #ffd166; font-size: 24px; font-weight: 900; text-shadow: 0 0 16px rgba(255, 209, 102, .6); }
+.b-rank.top2 { color: #dfe7f5; font-size: 21px; font-weight: 800; }
+.b-rank.top3 { color: #eea36f; font-size: 19px; font-weight: 800; }
+.board-row.top1 { background: linear-gradient(90deg, rgba(255, 209, 102, .10), transparent 55%); }
+.board-row.top2 { background: linear-gradient(90deg, rgba(223, 231, 245, .08), transparent 55%); }
+.board-row.top3 { background: linear-gradient(90deg, rgba(238, 163, 111, .08), transparent 55%); }

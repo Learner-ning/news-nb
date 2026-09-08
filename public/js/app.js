@@ -15,6 +15,7 @@ const els = {
   newsList: $("#news-list"),
   boardList: $("#board-list"),
   boardMeta: $("#board-meta"),
+  boardPlats: $("#board-plats"),
   listTitle: $("#list-title"),
   listMeta: $("#list-meta"),
   detailContent: $("#detail-content"),
@@ -72,6 +73,9 @@ const state = {
   dockOpen: (() => {
     try { return localStorage.getItem("nt.dock") !== "off"; } catch { return true; }
   })(),
+  plat: (() => {
+    try { return localStorage.getItem("nt.plat") || "all"; } catch { return "all"; }
+  })(),
   bg: loadBg(),
   data: null,  // 完整树模型（未筛选）
   items: []
@@ -85,6 +89,7 @@ function save() {
     localStorage.setItem("nt.cat", state.cat);
     localStorage.setItem("nt.sort", state.sort);
     localStorage.setItem("nt.dock", state.dockOpen ? "on" : "off");
+    localStorage.setItem("nt.plat", state.plat || "all");
   } catch {}
 }
 function saveBg() {
@@ -193,10 +198,24 @@ function renderList() {
 }
 
 function renderBoard() {
-  const items = [...flatFiltered()];
-  items.sort((a, b) => (b.heatScore || 0) - (a.heatScore || 0));
-  views.setBoardMeta(els.boardMeta, items);
-  views.renderBoard(els.boardList, items.slice(0, 20));
+  // 热榜视图：仅展示 kind=hot（平台热搜）数据，按平台分组 + 平台名次
+  const hot = flatFiltered().filter((x) => x.kind === "hot" || x.type === "hot");
+  const groups = views.groupHotByPlatform(hot);
+  views.setBoardMeta(els.boardMeta, groups, hot.length);
+  // 平台筛选 chips
+  els.boardPlats.innerHTML = "";
+  const mkChip = (key, label, active) => {
+    const b = document.createElement("button");
+    b.className = "plat-chip" + (active ? " active" : "");
+    b.dataset.plat = key;
+    b.textContent = label;
+    b.setAttribute("aria-pressed", active ? "true" : "false");
+    els.boardPlats.appendChild(b);
+  };
+  mkChip("all", "全部平台", !state.plat || state.plat === "all" || !groups.some((g) => g.platform === state.plat));
+  groups.forEach((g) => mkChip(g.platform, g.platform, state.plat === g.platform));
+  const active = groups.some((g) => g.platform === state.plat) ? state.plat : null;
+  views.renderBoard(els.boardList, groups, { limit: 10, active });
 }
 
 function syncSortPills() {
@@ -370,15 +389,15 @@ function wire() {
     if (btn) pickCat(btn.dataset.cat);
   });
 
-  // 列表 / 热榜点击与键盘
-  const openFrom = (container) => {
+  // 列表 / 热榜点击与键盘（列表=卡片 ncard，热榜=榜单行 board-row）
+  const openFrom = (container, selector) => {
     container.addEventListener("click", (e) => {
-      const c = e.target.closest(".row-item[data-id]");
+      const c = e.target.closest(selector);
       if (c) openDetail(c.dataset.id);
     });
     container.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
-        const c = e.target.closest(".row-item[data-id]");
+        const c = e.target.closest(selector);
         if (c) {
           e.preventDefault();
           openDetail(c.dataset.id);
@@ -386,8 +405,17 @@ function wire() {
       }
     });
   };
-  openFrom(els.newsList);
-  openFrom(els.boardList);
+  openFrom(els.newsList, ".ncard[data-id]");
+  openFrom(els.boardList, ".row-item[data-id]");
+
+  // 热榜平台筛选
+  els.boardPlats.addEventListener("click", (e) => {
+    const chip = e.target.closest(".plat-chip");
+    if (!chip) return;
+    state.plat = chip.dataset.plat;
+    save();
+    renderBoard();
+  });
 
   // 详情返回 / 品牌回首页
   els.backBtn.addEventListener("click", () => {
