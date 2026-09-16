@@ -1,5 +1,5 @@
 // 新闻树应用入口：树/列表/热榜三视图 + 分类 + 热度排序 + 详情 + 背景外观 + 路由
-import { loadNews, getState, getTags, buildTreeModel, getUpdatedLabel } from "./news-store.js";
+import { loadNews, getState, getTags, buildTreeModel, getUpdatedLabel, loadCache } from "./news-store.js";
 import { TreeView } from "./tree-view.js";
 import { colorFor } from "./helpers.js";
 import * as views from "./views.js";
@@ -44,8 +44,24 @@ const els = {
   bgPhotoRemove: $("#bg-photo-remove"),
   bgPhotoState: $("#bg-photo-state"),
   bgDim: $("#bg-dim"),
-  dimVal: $("#dim-val")
+  dimVal: $("#dim-val"),
+  toast: $("#toast")
 };
+
+// ---------------- 轻量提示条 / 首屏骨架 ----------------
+let toastTimer = null;
+function toast(msg, kind = "ok") {
+  if (!els.toast) return;
+  els.toast.textContent = msg;
+  els.toast.className = "toast show " + kind;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { els.toast.className = "toast"; }, 2600);
+}
+
+/** 无本地缓存且服务端正在抓取时显示骨架 */
+function setSkeleton(on) {
+  document.body.classList.toggle("booting", Boolean(on));
+}
 
 function loadBg() {
   const d = { theme: "night", photo: null, dim: 0.35 };
@@ -312,19 +328,17 @@ function startWarmPoll() {
   const tick = async () => {
     warmTimer = null;
     tries++;
-    const st = getState();
-    if (st.items.length || tries > WARM_POLL_MAX) return;
+    if (tries > WARM_POLL_MAX || !getState().warming) return;
     await loadNews();
-    const s2 = getState();
+    const st = getState();
     setStatus();
-    if (s2.items.length) {
-      state.items = s2.items;
+    if (st.items.length) {
+      state.items = st.items;
       state.data = buildTreeModel(state.items);
       renderCatBar();
       renderCurrent();
-      return;
     }
-    if (s2.warming) warmTimer = setTimeout(tick, WARM_POLL_INTERVAL_MS);
+    if (st.warming) warmTimer = setTimeout(tick, WARM_POLL_INTERVAL_MS);
   };
   warmTimer = setTimeout(tick, WARM_POLL_INTERVAL_MS);
 }
@@ -336,8 +350,8 @@ async function initData({ force = false } = {}) {
   state.data = buildTreeModel(state.items);
   renderCatBar();
   renderCurrent();
-  // 服务端缓存为空、后台正在抓取 → 轮询等待
-  if (!state.items.length && getState().warming) startWarmPoll();
+  // 服务端缓存为空或正在后台更新 → 轮询等待最新数据
+  if (getState().warming) startWarmPoll();
 }
 
 // ---------------- 图片压缩（避免 localStorage 超限） ----------------
@@ -473,19 +487,30 @@ function wire() {
     goMain(true);
   });
 
-  // 刷新
+  // 刷新（请求期间 disabled；服务端 60 秒内不重复全量抓取）
   els.refresh.addEventListener("click", async () => {
+    if (els.refresh.disabled) return;
+    els.refresh.disabled = true;
     els.refresh.classList.add("spinning");
+    els.refresh.setAttribute("aria-busy", "true");
     try {
       if (!location.pathname.startsWith("/detail/")) {
         await initData({ force: true });
+        const st = getState();
+        if (st.errors?.length && !st.items.length) toast("更新失败：" + (st.errors[0]?.message || "未知错误"), "err");
+        else if (st.throttled) toast("刚刷新过，60 秒内不重复抓取", "warn");
+        else if (st.warming) toast("正在更新，稍后自动出现", "warn");
+        else toast(`已更新 · ${st.items.length} 条`, "ok");
       } else {
         const id = location.pathname.split("/").pop();
         await initData({ force: true });
         await openDetail(id, { push: false });
+        toast("已更新", "ok");
       }
     } finally {
+      els.refresh.disabled = false;
       els.refresh.classList.remove("spinning");
+      els.refresh.removeAttribute("aria-busy");
     }
   });
 
@@ -558,16 +583,35 @@ function wire() {
   applyBg();
   if (state.bg.photo) markPhotoReady();
   syncSortPills();
+
   const match = location.pathname.match(/^\/detail\/([0-9a-z]+)$/i);
+
+  // ① 先用 localStorage 里的上一批数据立即渲染，消除白屏
+  const cached = loadCache();
+  if (cached) {
+    state.items = getState().items;
+    state.data = buildTreeModel(state.items);
+    renderCatBar();
+    setStatus();
+  }
+
   if (match) {
     showDetail();
     await initData();
     await openDetail(match[1], { push: false });
-  } else {
-    showMainView();
-    await initData();
-    if (state.mode === "tree") requestAnimationFrame(() => requestAnimationFrame(() => tree.fit()));
+    return;
   }
+
+  showMainView();
+  // ② 没有本地缓存 → 显示骨架；有缓存 → 直接显示内容
+  setSkeleton(!cached);
+  renderCurrent();
+  if (cached && state.mode === "tree") requestAnimationFrame(() => tree.fit());
+
+  // ③ 后台请求最新数据
+  await initData();
+  setSkeleton(false);
+  if (state.mode === "tree") requestAnimationFrame(() => requestAnimationFrame(() => tree.fit()));
 })();
 
 // 便于调试 / 自检

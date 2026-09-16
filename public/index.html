@@ -110,6 +110,24 @@
       </div>
 
       <div class="tree-hint" id="tree-hint">拖动移动 · 滚轮/捏合缩放 · 悬停叶片看新闻 · 点击进详情</div>
+
+      <!-- 首屏骨架：无本地缓存且服务端正在抓取时显示 -->
+      <div class="skeleton-layer" aria-live="polite">
+        <div class="sk-tree-art" aria-hidden="true">
+          <span class="sk-trunk"></span>
+          <span class="sk-branch sb1"></span>
+          <span class="sk-branch sb2"></span>
+          <span class="sk-branch sb3"></span>
+          <span class="sk-leaf sl1"></span>
+          <span class="sk-leaf sl2"></span>
+          <span class="sk-leaf sl3"></span>
+          <span class="sk-leaf sl4"></span>
+          <span class="sk-leaf sl5"></span>
+          <span class="sk-leaf sl6"></span>
+        </div>
+        <div class="sk-text">正在更新新闻……</div>
+        <div class="sk-sub">正在连接新闻源，稍后自动出现</div>
+      </div>
     </section>
 
     <!-- ======== 列表模式 ======== -->
@@ -123,6 +141,18 @@
         <div class="lv-meta" id="list-meta"></div>
       </div>
       <div id="news-list" class="news-list"></div>
+
+      <!-- 列表骨架 -->
+      <div class="skeleton-layer" aria-live="polite">
+        <div class="sk-rows" aria-hidden="true">
+          <i class="skeleton sk-row"></i>
+          <i class="skeleton sk-row"></i>
+          <i class="skeleton sk-row"></i>
+          <i class="skeleton sk-row"></i>
+          <i class="skeleton sk-row"></i>
+        </div>
+        <div class="sk-text">正在更新新闻……</div>
+      </div>
     </section>
 
     <!-- ======== 热榜模式 ======== -->
@@ -133,6 +163,17 @@
       </div>
       <div id="board-plats" class="board-plats" role="group" aria-label="热搜平台筛选"></div>
       <div id="board-list" class="board-list"></div>
+
+      <!-- 热榜骨架 -->
+      <div class="skeleton-layer" aria-live="polite">
+        <div class="sk-rows" aria-hidden="true">
+          <i class="skeleton sk-row"></i>
+          <i class="skeleton sk-row"></i>
+          <i class="skeleton sk-row"></i>
+          <i class="skeleton sk-row"></i>
+        </div>
+        <div class="sk-text">正在更新新闻……</div>
+      </div>
     </section>
 
     <!-- ======== 详情视图 ======== -->
@@ -172,6 +213,8 @@
     <span class="cat-bar-hint">分类</span>
     <div class="cat-scroll" id="cat-scroll"></div>
   </nav>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script type="module" src="/js/app.js"></script>
 </body>

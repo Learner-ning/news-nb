@@ -4,14 +4,51 @@
 import { colorFor, orderTags } from "./helpers.js";
 
 const state = {
-  items: [],        // 服务端最新一批
+  items: [],        // 服务端最新一批（或 localStorage 里的上一批）
   updatedAt: 0,
   stale: false,
   warming: false,   // 服务端缓存为空、后台正在抓取
   throttled: false, // 刷新被节流（距上次强制刷新不足最小间隔）
+  fromCache: false, // 当前 items 来自 localStorage
   errors: [],
   loading: false
 };
+
+// ---------------- localStorage 持久化 ----------------
+// 只保存列表字段（列表接口本身已不含 content），控制体积在 200 KB 以内。
+const LS_KEY = "nt.news.v1";
+const LS_MAX_ITEMS = 260;
+
+function saveCache() {
+  try {
+    const items = state.items.slice(0, LS_MAX_ITEMS);
+    localStorage.setItem(LS_KEY, JSON.stringify({ v: 1, updatedAt: state.updatedAt, items }));
+    return true;
+  } catch {
+    return false;   // 写入失败（配额/隐私模式）不影响页面
+  }
+}
+
+/** 读取上一次成功的数据；成功则置 items 并标记 fromCache */
+export function loadCache() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    if (!d || !Array.isArray(d.items) || !d.items.length) return false;
+    state.items = d.items;
+    state.updatedAt = Number(d.updatedAt) || 0;
+    state.fromCache = true;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 清掉本地缓存（仅用于调试/排障） */
+export function clearCache() {
+  try { localStorage.removeItem(LS_KEY); } catch {}
+}
 
 export async function loadNews({ force = false, source = "all" } = {}) {
   if (state.loading) return state;
@@ -32,13 +69,19 @@ export async function loadNews({ force = false, source = "all" } = {}) {
 
     const d = await r.json();
     const items = Array.isArray(d.items) ? d.items : [];
-    if (items.length) state.items = items;
-    else if (!state.items.length) state.items = [];
+    // 先更新元信息，再写缓存 —— 否则缓存里会存到旧的 updatedAt
     if (d.updatedAt) state.updatedAt = new Date(d.updatedAt).getTime();
     state.stale = Boolean(d.stale);
     state.warming = Boolean(d.warming);
     state.throttled = Boolean(d.throttled);
     state.errors = Array.isArray(d.errors) ? d.errors : [];
+    if (items.length) {
+      state.items = items;
+      state.fromCache = false;
+      saveCache();
+    } else if (!state.items.length) {
+      state.items = [];
+    }
   } catch (e) {
     state.errors = [{ source: "client", message: e.message || "请求失败" }];
   } finally {
