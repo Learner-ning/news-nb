@@ -96,14 +96,16 @@ export function setBoardMeta(elm, groups, hotCount) {
 }
 
 // ---------- 详情 ----------
-export function showDetailSkeleton(container) {
-  container.innerHTML = `<div class="skeleton detail-skeleton"></div>`;
+export function showDetailSkeleton(container, text = "正在加载正文…") {
+  container.innerHTML = `
+    <div class="skeleton detail-skeleton"></div>
+    <div class="detail-loading" role="status">${esc(text)}</div>`;
 }
 
-export function showDetailError(container, onBack) {
+export function showDetailError(container, onBack, message = "") {
   container.innerHTML = `
     <div class="detail-error">
-      <p>新闻不存在或已过期。</p>
+      <p>${message ? "加载失败：" + esc(message) : "新闻不存在或已过期。"}</p>
       <button class="btn-secondary" type="button" id="back-from-error">返回列表</button>
     </div>`;
   container.querySelector("#back-from-error")?.addEventListener("click", onBack);

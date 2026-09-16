@@ -1,7 +1,7 @@
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { collectAll } from "./lib/news-core.mjs";
+import { collectAll, toListItem } from "./lib/news-core.mjs";
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -48,7 +48,8 @@ app.get("/api/news", async (req, res) => {
       updatedAt: data.updatedAt,
       stale: Boolean(data.stale),
       errors: data.errors || [],
-      items: items.slice(0, 260)
+      // 列表只返回渲染所需字段，正文 content 由 /api/news/:id 按需返回
+      items: items.slice(0, 260).map(toListItem)
     });
   } catch (e) {
     res.status(500).json({ error: e.message || "加载失败" });

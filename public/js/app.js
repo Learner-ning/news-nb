@@ -230,14 +230,17 @@ async function openDetail(id, { push = true } = {}) {
   showDetail();
   views.showDetailSkeleton(els.detailContent);
   document.title = "加载中 — 新闻树";
-  let item = state.items.find((x) => x.id === id);
-  if (!item) {
+  let item = state.items.find((x) => x.id === id) || null;
+  // 列表接口不再返回正文：条目缺少 content 时按需请求详情接口
+  if (!item || !item.content) {
     try {
-      const r = await fetch("/api/news/" + encodeURIComponent(id));
-      if (!r.ok) throw new Error("not found");
-      item = await r.json();
-    } catch {
-      views.showDetailError(els.detailContent, () => goMain(true));
+      const r = await fetch("/api/news/" + encodeURIComponent(id), { cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const full = await r.json();
+      item = item ? { ...item, ...full } : full;
+    } catch (e) {
+      views.showDetailError(els.detailContent, () => goMain(true), e.message || "请求失败");
+      document.title = "加载失败 — 新闻树";
       return;
     }
   }

@@ -421,6 +421,7 @@ body.dock-off .left-dock { display: none; }
 }
 .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
 .detail-error { text-align: center; padding: 60px 20px; color: var(--muted); }
+.detail-loading { text-align: center; color: var(--muted); font-size: 13px; margin-top: 14px; }
 
 /* ===== 底部分类栏 ===== */
 .cat-bar {

@@ -2,7 +2,7 @@
 // - 静态资源（public/）由 Cloudflare Assets 自动托管
 // - /api/* 由本 Worker 处理（复用统一抓取/去重/热度引擎）
 // - 其余路径（SPA 深链 /detail/:id 等）回落 index.html
-import { collectAll } from "../lib/news-core.mjs";
+import { collectAll, toListItem } from "../lib/news-core.mjs";
 
 let cache = null;
 let cacheAt = 0;
@@ -34,7 +34,8 @@ async function handleApi(url) {
   if (path === "/api/news") {
     const source = url.searchParams.get("source") || "all";
     const items = source === "all" ? data.items : data.items.filter((x) => x.tag === source);
-    return json({ updatedAt: data.updatedAt, stale: false, errors: data.errors || [], items: items.slice(0, 260) });
+    // 列表只返回渲染所需字段，正文 content 由 /api/news/:id 按需返回
+    return json({ updatedAt: data.updatedAt, stale: false, errors: data.errors || [], items: items.slice(0, 260).map(toListItem) });
   }
   const m = path.match(/^\/api\/news\/([0-9a-f]+)$/i);
   if (m) {
