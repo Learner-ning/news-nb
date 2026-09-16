@@ -11,12 +11,26 @@ export function clamp(v, lo, hi) {
 
 export function timeAgo(t) {
   if (!t) return "";
-  const d = Date.now() - new Date(t).getTime();
+  const ms = new Date(t).getTime();
+  if (isNaN(ms)) return "";
+  const d = Date.now() - ms;
   const m = Math.floor(d / 60000);
   if (m < 1) return "刚刚";
   if (m < 60) return `${m} 分钟前`;
   if (m < 1440) return `${Math.floor(m / 60)} 小时前`;
   return `${Math.floor(m / 1440)} 天前`;
+}
+
+/**
+ * 时间标签：优先真实发布时间；无真实时间的热榜条目回退为「热榜第 N 位」。
+ * 绝不展示伪造的相对时间。
+ */
+export function timeLabel(x) {
+  if (!x) return "";
+  const rel = timeAgo(x.time || x.publishedAt);
+  if (rel) return rel;
+  if (x.hotRank) return `热榜第 ${x.hotRank} 位`;
+  return "时间未知";
 }
 
 export function fmtClock(t) {
@@ -31,7 +45,9 @@ export function fmtClock(t) {
 export function fmtFull(t) {
   if (!t) return "";
   try {
-    return new Date(t).toLocaleString("zh-CN", {
+    const d = new Date(t);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleString("zh-CN", {
       month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"
     });
   } catch {

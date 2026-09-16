@@ -1,6 +1,6 @@
 // 视图层：新闻卡片列表 / 平台分组热榜 / 详情 / 悬停卡
 // 所有视图共用同一份真实数据与点击→详情跳转逻辑
-import { esc, timeAgo, fmtFull, colorFor } from "./helpers.js";
+import { esc, timeLabel, fmtFull, colorFor } from "./helpers.js";
 
 function heatText(x) {
   const h = Math.round((x.heatScore || 0) * 100);
@@ -14,7 +14,7 @@ function card(x) {
     <div class="nc-line">
       <span class="nc-cat" style="--c:${colorFor(x.tag)}">${esc(x.tag)}</span>
       <span class="nc-src">${esc(x.source)}</span>
-      <span class="nc-time">${timeAgo(x.time)}</span>
+      <span class="nc-time">${esc(timeLabel(x))}</span>
       ${x.hotRank ? `<span class="nc-hotrank">热榜#${x.hotRank}</span>` : ""}
     </div>
     <h3 class="nc-title">${esc(x.title)}</h3>
@@ -64,7 +64,7 @@ function hotRow(x, i) {
     <span class="b-rank${topCls}">${i + 1}</span>
     <span class="b-main">
       <span class="ri-title">${esc(x.title)}</span>
-      <span class="b-meta">${esc(x.source)} · ${esc(x.tag)} · ${timeAgo(x.time)}${extra}</span>
+      <span class="b-meta">${esc(x.source)} · ${esc(x.tag)} · ${esc(timeLabel(x))}${extra}</span>
     </span>
     <span class="b-heat"><i class="b-bar" style="--w:${heat}%"></i><b>${heat}</b></span>
   </article>`;
@@ -120,8 +120,8 @@ export function renderDetail(container, item) {
     <div class="detail-tag">${esc(item.tag)} · ${esc(item.source)}</div>
     <h1 class="detail-title">${esc(item.title)}</h1>
     <div class="detail-meta">
-      <span>${timeAgo(item.time)}</span>
-      <span>${fmtFull(item.time)}</span>
+      <span>${esc(timeLabel(item))}</span>
+      ${fmtFull(item.time) ? `<span>${esc(fmtFull(item.time))}</span>` : ""}
     </div>
     ${heatLine}
     <div class="detail-body">${esc(content)}</div>
@@ -145,7 +145,7 @@ export function renderDetail(container, item) {
 export function fillHoverCard(cardEl, item) {
   const byId = (id) => cardEl.querySelector("#" + id);
   byId("hc-chip").textContent = `${item.tag} · ${item.source}`;
-  byId("hc-time").textContent = timeAgo(item.time);
+  byId("hc-time").textContent = timeLabel(item);
   byId("hc-title").textContent = item.title;
   const heat = Number(item.heatScore || 0);
   const parts = [];
