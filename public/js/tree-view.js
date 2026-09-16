@@ -1,28 +1,14 @@
-// 新闻树视图：确定性布局 + SVG 渲染 + 交互（悬停/点击/拖拽/缩放/生长动画）
+// 新闻树视图：确定性布局（tree-layout.js）+ SVG 渲染 + 交互 + LOD
 //
 // 视觉层级（一棵真正的树，不是粒子网 / 星点网络）：
-//   树根(底部) → 树干(明显宽度+树皮) → 主枝(分类·曲线) → 分枝(来源)
-//   → 枝头(排/簇) → 新闻叶片(真实新闻卡片，挂于枝头)
+//   树根(底部) → 树干(纵向、底粗顶细) → 主枝(分类·角度扇区)
+//   → 分枝(来源·扇区内的连续角带) → 新闻叶片(真实新闻卡片，按行挂在分枝上)
 //
-// 布局由数据驱动、结果稳定：同一批新闻生成基本相同的树，无随机散点。
+// 几何全部由 tree-layout.js 的纯函数给出（无随机、同数据同输出）。
 // 平移/缩放只改 #world 的 transform；只有数据或分类变化才重新布局。
-import { textWidth } from "./helpers.js";
+import { layoutTree, computeFit, truncateByWidth, lodLevel, LAYOUT_DEFAULTS } from "./tree-layout.js";
 
 const NS = "http://www.w3.org/2000/svg";
-
-// —— 逻辑几何参数（y 向下：树向上长，故叶片在最上方）——
-const PILL_H = 44;        // 叶片卡片高度（纯标题）
-const ROW_TOP = 84;       // 最顶一排叶片卡片底部 y
-const ROW_STEP = 96;      // 相邻两排枝头（一列叶片排）间距
-const ROW_GAP = 12;       // 同一排相邻叶片间隙
-const CLUSTER_GAP = 62;   // 分类内不同来源(分枝)间距
-const CAT_GAP = 150;      // 主枝(分类)间距
-const X_MARGIN = 120;
-const LEAF_PAD = 24;      // 叶片左右内边距（文字可用宽 = 叶片宽 - LEAF_PAD）
-const LEAF_MIN_W = 108;   // 叶片最小宽度
-const LEAF_MAX_W = 340;   // 叶片最大宽度：标题再长也不会无限扩张
-const LEAF_HEAT_LO = 0.95; // 热度视觉权重下限（heat=0）
-const LEAF_HEAT_HI = 1.15; // 热度视觉权重上限（heat=1）
 
 function svgEl(name, attrs = {}) {
   const n = document.createElementNS(NS, name);
@@ -35,46 +21,13 @@ function svgEl(name, attrs = {}) {
   return n;
 }
 
-/** 竖向往上并带自然侧弯的曲线：模拟枝干生长（同一父点分叉时弯向各自方向） */
-function branchCurve(x0, y0, x1, y1) {
-  const dy = y1 - y0;
-  const dir = x1 >= x0 ? 1 : -1;
-  const bow = Math.min(56, Math.abs(x1 - x0) * 0.16 + 26) * dir;
-  return `M ${x0} ${y0} C ${x0 + bow} ${y0 + dy * 0.42}, ${x1 + bow} ${y1 - dy * 0.74}, ${x1} ${y1}`;
-}
-
-/** 叶柄曲线：从来源分枝轻微弧形上挑到叶片底部 */
-function stemCurve(x0, y0, x1, y1) {
-  const midY = (y0 + y1) / 2;
-  const bow = (x1 - x0) * 0.22;
-  return `M ${x0} ${y0} C ${x0 + bow} ${y0 - (y0 - y1) * 0.15}, ${x1 - bow} ${midY + (y0 - y1) * 0.2}, ${x1} ${y1}`;
-}
-
-/** 叶片文字：剥掉任何残留 HTML 标签并归一化空白，保证截断永不产生半截标签 */
-function leafText(s) {
-  return String(s ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-}
-
-/** 语义边界：优先在这些标点处收尾，避免截出半截词 */
-const BOUNDARY_RE = /[，。！？；：、,.!?;:）)】」》”"'\/|·—…%]/;
-
-/** 按真实文字宽度截断标题（CJK 约 13.5px / 拉丁数字约 7.6px，13px 字号） */
-function truncateByWidth(s, w) {
-  const avail = w - LEAF_PAD;
-  const text = leafText(s);
-  if (avail <= 4) return "…";
-  if (textWidth(text) <= avail) return text;
-  let out = "";
-  let lastBoundary = 0;
-  for (const ch of text) {
-    if (textWidth(out + ch) > avail) break;
-    out += ch;
-    if (BOUNDARY_RE.test(ch)) lastBoundary = out.length;
-  }
-  // 靠后位置存在语义边界时在边界处收尾（丢弃不足 20% 的尾巴），
-  // 避免截出半截词；否则退回按宽度截断。
-  if (lastBoundary >= out.length * 0.8) return out.slice(0, lastBoundary) + "…";
-  return (out || "…") + "…";
+/** 主枝 / 分枝曲线：中点向树冠外侧微弯，读起来像自然分叉 */
+function branchPath(p0, p1) {
+  const dx = p1.x - p0.x;
+  const bow = Math.min(70, Math.abs(dx) * 0.32) * (dx >= 0 ? 1 : -1);
+  const mx = (p0.x + p1.x) / 2 + bow;
+  const my = (p0.y + p1.y) / 2;
+  return `M ${p0.x} ${p0.y} Q ${mx} ${my} ${p1.x} ${p1.y}`;
 }
 
 export class TreeView {
@@ -89,251 +42,143 @@ export class TreeView {
     this._suppressClick = false;
     this.pointers = new Map();
     this._pinch = 0;
-    this.minScale = 0.08;
+    this.minScale = 0.06;
     this.maxScale = 6;
     this.onHover = null;
     this.onLeave = null;
     this.onOpen = null;
     this._attached = false;
-    this._leafW = new Map();
-    this._bbox = { minX: 0, maxX: 200, minY: 0, maxY: 200 };
+    this._lod = -1;
+    this.geom = null;
+    this._bbox = { minX: -1, maxX: 1, minY: -1, maxY: 0 };
   }
 
-  leafW(item) {
-    if (!this._leafW.has(item.id)) {
-      // 按真实文字宽度估算「完整标题所需宽度」，再按热度做视觉权重微调；
-      // 上限 LEAF_MAX_W 保证叶片不会随标题变长而无限扩张。
-      const need = Math.min(textWidth(leafText(item.title)) + LEAF_PAD, LEAF_MAX_W);
-      const heat = Math.min(1, Math.max(0, Number(item.heatScore) || 0));
-      const w = need * (LEAF_HEAT_LO + heat * (LEAF_HEAT_HI - LEAF_HEAT_LO));
-      this._leafW.set(item.id, Math.round(Math.min(LEAF_MAX_W, Math.max(LEAF_MIN_W, w))));
-    }
-    return this._leafW.get(item.id);
-  }
-
-  // ================= 确定性布局 =================
-  layout(cats) {
-    let cursorX = X_MARGIN;
-    let catMaxY = 0;
-    const placed = [];
-
-    for (const cat of cats) {
-      const catLeft = cursorX;
-      let x = catLeft;
-      const sources = [];
-      let srcMaxY = 0;
-
-      for (const src of cat.sources) {
-        // 1) 分排：每排横宽不超过上限 → 排=从来源长出的一支细枝。
-        //    只看单个分类时用更宽的排（字更大更好读）；全树时用窄排控制整树宽度。
-        const rowCap = cats.length <= 1 ? 1020 : 560;
-        const rows = [];
-        let row = [], rowW = 0;
-        for (const item of src.items) {
-          const w = this.leafW(item);
-          if (row.length && rowW + ROW_GAP + w > rowCap) {
-            rows.push(row);
-            row = []; rowW = 0;
-          }
-          row.push(item);
-          rowW += w + (row.length > 1 ? ROW_GAP : 0);
-        }
-        if (row.length) rows.push(row);
-
-        const widths = rows.map((r) => r.reduce((s, it) => s + this.leafW(it), 0) + Math.max(0, r.length - 1) * ROW_GAP);
-        const clusterW = Math.max(0, ...widths);
-        const cx = x + clusterW / 2;   // 这一丛枝叶的中心 = 来源分枝终点
-
-        const leaves = [];
-        for (let ri = 0; ri < rows.length; ri++) {
-          const topY = ROW_TOP + ri * ROW_STEP;
-          let lx = cx - widths[ri] / 2;
-          for (const item of rows[ri]) {
-            const w = this.leafW(item);
-            leaves.push({ id: item.id, item, w, x: lx + w / 2, topY });
-            lx += w + ROW_GAP;
-          }
-        }
-        const srcY = ROW_TOP + (rows.length - 1) * ROW_STEP + PILL_H + 44;
-        sources.push({ name: src.name, items: src.items.length, x: cx, y: srcY, leaves });
-        srcMaxY = Math.max(srcMaxY, srcY);
-        x += clusterW + CLUSTER_GAP;
-      }
-
-      const catX = sources.reduce((s, so) => s + so.x, 0) / Math.max(1, sources.length);
-      const catY = srcMaxY + 104;
-      placed.push({
-        key: cat.key, name: cat.name, color: cat.color, count: cat.count,
-        x: catX, y: catY, sources
-      });
-      catMaxY = Math.max(catMaxY, catY);
-      cursorX = catLeft + (x - CLUSTER_GAP - catLeft) + CAT_GAP;
-    }
-
-    const crownY = catMaxY + 128;
-    const baseY = crownY + 216;
-    const total = placed.reduce((s, c) => s + (c.count || 0), 0);
-    const crownX = total
-      ? placed.reduce((s, c) => s + c.x * c.count, 0) / total
-      : X_MARGIN;
-
-    let minX = Infinity, maxX = -Infinity;
-    for (const c of placed) {
-      minX = Math.min(minX, c.x);
-      maxX = Math.max(maxX, c.x);
-      for (const s of c.sources) {
-        minX = Math.min(minX, s.x);
-        maxX = Math.max(maxX, s.x);
-        for (const l of s.leaves) {
-          minX = Math.min(minX, l.x - l.w / 2);
-          maxX = Math.max(maxX, l.x + l.w / 2);
-        }
-      }
-    }
-    minX = Math.min(minX, crownX);
-    maxX = Math.max(maxX, crownX);
-
-    return {
-      cats: placed, crownX, crownY, baseY,
-      minX: Math.max(0, minX - 74), maxX: maxX + 74,
-      minY: 0, maxY: baseY + 50
-    };
-  }
-
-  // ================= 渲染（按 z 顺序分批） =================
+  // ================= 渲染 =================
   build(cats) {
     this.world.innerHTML = "";
     this.leafElm.clear();
-    // 叶片宽度依赖 heatScore，刷新数据后热度会变，必须清掉宽度缓存重算。
-    this._leafW.clear();
     this.svg.classList.toggle("no-tree", !cats || !cats.length);
-    if (!cats || !cats.length) return;
+    if (!cats || !cats.length) {
+      this.geom = null;
+      return;
+    }
 
-    const L = this.layout(cats);
-    this._bbox = L;
-    const { cats: cs, crownX, crownY, baseY } = L;
+    const g = layoutTree(cats, LAYOUT_DEFAULTS);
+    this.geom = g;
+    this._bbox = g.bbox;
 
-    const passRoot = svgEl("g", { cls: "roots" });        // 树根地面 + 树干
-    const passMain = svgEl("g", { cls: "mains" });        // 主枝
-    const passSub = svgEl("g", { cls: "subs" });          // 分枝
-    const passStems = svgEl("g", { cls: "stems" });       // 叶柄
-    const passLeaves = svgEl("g", { cls: "leaves" });     // 新闻叶片
-    const passLabels = svgEl("g", { cls: "labels" });     // 分类/来源标签
+    const passTrunk = svgEl("g", { cls: "trunk-group" });
+    const passMain = svgEl("g", { cls: "mains" });
+    const passSub = svgEl("g", { cls: "subs" });
+    const passLeaves = svgEl("g", { cls: "leaves" });
+    const passLabels = svgEl("g", { cls: "labels" });
 
-    // —— 根部阴影 + 树干 ——
-    passRoot.appendChild(svgEl("ellipse", { cx: crownX, cy: baseY + 18, rx: 66, ry: 16, cls: "ground-shadow" }));
-    const hb = 30, th = 5;
-    const trunkD = [
-      `M ${crownX - hb} ${baseY}`,
-      `C ${crownX - hb * 0.6} ${baseY - (baseY - crownY) * 0.32}, ${crownX - th - 13} ${crownY + (baseY - crownY) * 0.13}, ${crownX - th} ${crownY}`,
-      `L ${crownX + th} ${crownY}`,
-      `C ${crownX + th + 13} ${crownY + (baseY - crownY) * 0.13}, ${crownX + hb * 0.6} ${baseY - (baseY - crownY) * 0.32}, ${crownX + hb} ${baseY}`,
-      "Z"
-    ].join(" ");
-    passRoot.appendChild(svgEl("path", { d: trunkD, cls: "trunk", style: "--d:0ms" }));
+    // —— 树根 + 树干（底粗顶细，纵向）——
+    const t = g.trunk;
+    const bw = t.baseW / 2, tw = t.topW / 2, h = t.h;
+    passTrunk.appendChild(svgEl("ellipse", { cx: 0, cy: 6, rx: bw * 2.1, ry: 12, cls: "ground-shadow" }));
+    passTrunk.appendChild(svgEl("path", {
+      d: [
+        `M ${-bw} 0`,
+        `C ${-bw * 0.62} ${-h * 0.34}, ${-tw - 6} ${-h * 0.72}, ${-tw} ${-h}`,
+        `L ${tw} ${-h}`,
+        `C ${tw + 6} ${-h * 0.72}, ${bw * 0.62} ${-h * 0.34}, ${bw} 0`,
+        "Z"
+      ].join(" "),
+      cls: "trunk", style: "--d:0ms"
+    }));
     const bark = svgEl("g", { cls: "bark" });
-    for (const off of [-12, -5, 5, 12]) {
+    for (const b of t.bark) {
       bark.appendChild(svgEl("path", {
-        d: `M ${crownX + off} ${baseY - 10} C ${crownX + off * 0.62} ${baseY - (baseY - crownY) * 0.42}, ${crownX + off * 0.18} ${crownY + (baseY - crownY) * 0.18}, ${crownX + off * 0.08} ${crownY + 6}`,
+        d: `M ${b.offset} -8 C ${b.offset * 0.7} ${-h * 0.42}, ${b.offset * 0.24} ${-h * 0.74}, ${b.offset * 0.1} ${-h + 6}`,
         cls: "bark-line grow-path", pathLength: 1, style: "--d:30ms"
       }));
     }
-    passRoot.appendChild(bark);
+    passTrunk.appendChild(bark);
 
-    // —— 主枝(分类) / 分枝(来源) ——
-    for (let ci = 0; ci < cs.length; ci++) {
-      const c = cs[ci];
-      const catG = svgEl("g", { cls: "bcat", "data-cat": c.key });
-      catG.appendChild(svgEl("path", {
-        d: branchCurve(crownX, crownY, c.x, c.y), fill: "none",
+    // —— 主枝（树干顶端 → 分类节点）——
+    const apex = g.apex;
+    g.categories.forEach((c, ci) => {
+      const grp = svgEl("g", { cls: "bcat", "data-cat": c.key });
+      grp.appendChild(svgEl("path", {
+        d: branchPath(apex, c.node), fill: "none",
         cls: "branch-main grow-path", pathLength: 1,
         style: `--c:${c.color};--d:${100 + ci * 80}ms`
       }));
-      passMain.appendChild(catG);
+      passMain.appendChild(grp);
+    });
 
+    // —— 分枝（分类节点 → 来源节点）+ 枝脊 ——
+    for (let ci = 0; ci < g.categories.length; ci++) {
+      const c = g.categories[ci];
       for (let si = 0; si < c.sources.length; si++) {
         const s = c.sources[si];
-        const srcG = svgEl("g", { cls: "bsrc", "data-cat": c.key, "data-src": si });
-        srcG.appendChild(svgEl("path", {
-          d: branchCurve(c.x, c.y, s.x, s.y), fill: "none",
+        const grp = svgEl("g", { cls: "bsrc", "data-cat": c.key, "data-src": si });
+        grp.appendChild(svgEl("path", {
+          d: branchPath(c.node, s.node), fill: "none",
           cls: "branch-sub grow-path", pathLength: 1,
-          style: `--c:${c.color};--d:${280 + ci * 80 + si * 56}ms`
+          style: `--c:${c.color};--d:${260 + ci * 80 + si * 50}ms`
         }));
-        passSub.appendChild(srcG);
-      }
-    }
-
-    // —— 叶柄（先画，藏在叶片下面） ——
-    for (let ci = 0; ci < cs.length; ci++) {
-      const c = cs[ci];
-      for (let si = 0; si < c.sources.length; si++) {
-        const s = c.sources[si];
-        for (const leaf of s.leaves) {
-          passStems.appendChild(svgEl("path", {
-            d: stemCurve(s.x, s.y, leaf.x, leaf.topY), fill: "none",
-            cls: "stem grow-path", pathLength: 1,
-            "data-cat": c.key, "data-src": si,
-            style: `--c:${c.color};--d:${380 + ci * 80 + si * 56}ms`
-          }));
-        }
+        passSub.appendChild(grp);
+        // 枝脊：从来源节点竖直连到第一行叶片，让叶片看起来挂在分枝上
+        passSub.appendChild(svgEl("path", {
+          d: `M ${s.spine.x} ${s.spine.y1} L ${s.spine.x} ${s.spine.y2}`, fill: "none",
+          cls: "spine", "data-cat": c.key, "data-src": si,
+          style: `--c:${c.color};--d:${300 + ci * 80 + si * 50}ms`
+        }));
       }
     }
 
     // —— 新闻叶片 ——
-    for (let ci = 0; ci < cs.length; ci++) {
-      const c = cs[ci];
-      for (let si = 0; si < c.sources.length; si++) {
-        const s = c.sources[si];
-        for (const leaf of s.leaves) {
-          const heat = Number(leaf.item.heatScore) || 0.5;
-          const cls = "leaf" + (heat >= 0.6 ? " hot" : heat <= 0.36 ? " cool" : "");
-          const g = svgEl("g", {
-            cls, "data-leaf": leaf.id, "data-cat": c.key, "data-src": si,
-            style: `--c:${c.color};--d:${430 + ci * 80 + si * 56}ms`
-          });
-          g.appendChild(svgEl("rect", {
-            x: leaf.x - leaf.w / 2, y: leaf.topY - PILL_H, width: leaf.w, height: PILL_H, rx: 10, cls: "leaf-pill"
-          }));
-          // 纯标题叶片：只显示新闻标题
-          g.appendChild(svgEl("text", {
-            x: leaf.x, y: leaf.topY - Math.round(PILL_H / 2) + 4.5, "text-anchor": "middle",
-            cls: "leaf-title", text: truncateByWidth(leaf.item.title, leaf.w)
-          }));
-          passLeaves.appendChild(g);
-          this.leafElm.set(leaf.id, { g, item: leaf.item });
-        }
-      }
+    for (const leaf of g.leaves) {
+      const c = g.categories[leaf.ci];
+      const heat = Number(leaf.item.heatScore) || 0.5;
+      const cls = "leaf" + (heat >= 0.6 ? " hot" : heat <= 0.36 ? " cool" : "");
+      const grp = svgEl("g", {
+        cls, "data-leaf": leaf.id, "data-cat": c.key, "data-src": leaf.si,
+        style: `--c:${c.color};--d:${380 + leaf.ci * 80 + leaf.si * 50}ms`
+      });
+      grp.appendChild(svgEl("rect", {
+        x: leaf.x - leaf.w / 2, y: leaf.y - leaf.h / 2,
+        width: leaf.w, height: leaf.h, rx: 9, cls: "leaf-pill"
+      }));
+      grp.appendChild(svgEl("text", {
+        x: leaf.x, y: leaf.y + 4.5, "text-anchor": "middle",
+        cls: "leaf-title", text: truncateByWidth(leaf.item.title, leaf.w)
+      }));
+      passLeaves.appendChild(grp);
+      this.leafElm.set(leaf.id, { g: grp, item: leaf.item });
     }
 
-    // —— 分类标签 + 来源名（置于最上层，不被枝条压住） ——
-    for (let ci = 0; ci < cs.length; ci++) {
-      const c = cs[ci];
-      const name = `${c.name} ${c.count ?? ""}`.trim();
-      const wl = textWidth(name) * (15 / 13) + 30;
+    // —— 标签（分类 / 来源）——
+    g.categories.forEach((c, ci) => {
+      const name = `${c.name} ${c.count}`;
+      const wl = Math.min(150, name.length * 14 + 26);
       const lbl = svgEl("g", { cls: "cat-label", style: `--d:${170 + ci * 80}ms` });
       lbl.appendChild(svgEl("rect", {
-        x: c.x - wl / 2, y: c.y - 48, width: wl, height: 28, rx: 14,
+        x: c.node.x - wl / 2, y: c.node.y - 13, width: wl, height: 26, rx: 13,
         cls: "cat-label-bg", style: `--c:${c.color}`
       }));
       lbl.appendChild(svgEl("text", {
-        x: c.x, y: c.y - 28.5, "text-anchor": "middle", cls: "cat-label-text", text: name
+        x: c.node.x, y: c.node.y + 4.5, "text-anchor": "middle", cls: "cat-label-text", text: name
       }));
       passLabels.appendChild(lbl);
 
-      for (let si = 0; si < c.sources.length; si++) {
-        const s = c.sources[si];
+      for (const s of c.sources) {
         passLabels.appendChild(svgEl("circle", {
-          cx: s.x, cy: s.y, r: 4.2, cls: "src-dot", style: `--c:${c.color};--d:${320 + ci * 80 + si * 56}ms`
+          cx: s.node.x, cy: s.node.y, r: 4.2, cls: "src-dot",
+          style: `--c:${c.color};--d:${300 + ci * 80 + s.si * 50}ms`
         }));
         passLabels.appendChild(svgEl("text", {
-          x: s.x + 10, y: s.y + 4.5, cls: "src-name",
-          text: `${s.name} · ${s.items}`, style: `--d:${330 + ci * 80 + si * 56}ms`
+          x: s.node.x + 9, y: s.node.y + 4.5, cls: "src-name",
+          text: `${s.name} · ${s.count}`, style: `--d:${310 + ci * 80 + s.si * 50}ms`
         }));
       }
-    }
+    });
 
-    for (const p of [passRoot, passMain, passSub, passStems, passLeaves, passLabels]) this.world.appendChild(p);
+    for (const p of [passTrunk, passMain, passSub, passLeaves, passLabels]) this.world.appendChild(p);
 
+    this._lod = -1;
     this._animate();
     this.fit(false);
   }
@@ -354,22 +199,23 @@ export class TreeView {
     if (animate) this.world.classList.add("smooth");
     this.world.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
     if (animate) window.setTimeout(() => this.world.classList.remove("smooth"), 400);
+    this.applyLod(s);
+  }
+
+  /** 语义缩放：缩小时先隐藏叶片文字，再聚合到来源节点 */
+  applyLod(s) {
+    const lv = lodLevel(s);
+    if (lv === this._lod) return;
+    this._lod = lv;
+    for (const c of ["lod-0", "lod-1", "lod-2"]) this.world.classList.toggle(c, lv === Number(c.slice(4)));
   }
 
   fit(animate = false) {
     const r = this.svg.getBoundingClientRect();
-    if (!r.width || !r.height) return;
-    const b = this.bbox();
-    const bw = Math.max(1, b.maxX - b.minX);
-    const bh = Math.max(1, b.maxY - b.minY);
-    const padT = 30, padB = 40;
-    const s = Math.min((r.width - 44) / bw, (r.height - padT - padB) / bh, 1.7);
-    // 水平居中；垂直方向让树“立”在舞台偏下（树根贴近底部，而不是悬在正中）
-    this.setTransform(
-      r.width / 2 - (b.minX + b.maxX) / 2 * s,
-      (r.height - padB) - b.maxY * s,
-      s, animate
-    );
+    if (!r.width || !r.height) return null;
+    const f = computeFit(this.bbox(), r.width, r.height, LAYOUT_DEFAULTS);
+    this.setTransform(f.tx, f.ty, f.s, animate);
+    return f;
   }
 
   zoomBy(factor, px, py, animate = false) {
@@ -488,7 +334,7 @@ export class TreeView {
       const esc = (v) => CSS.escape(String(v));
       const q = src == null
         ? `.bcat[data-cat="${esc(cat)}"]`
-        : `.bcat[data-cat="${esc(cat)}"], .bsrc[data-cat="${esc(cat)}"][data-src="${esc(src)}"], .stem[data-cat="${esc(cat)}"][data-src="${esc(src)}"]`;
+        : `.bcat[data-cat="${esc(cat)}"], .bsrc[data-cat="${esc(cat)}"][data-src="${esc(src)}"], .spine[data-cat="${esc(cat)}"][data-src="${esc(src)}"]`;
       this.world.querySelectorAll(q).forEach((n) => n.classList.add("on"));
     }
     const rec2 = this.leafElm.get(id);
