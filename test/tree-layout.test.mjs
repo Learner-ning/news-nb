@@ -59,7 +59,7 @@ test("2. 空数据：不崩溃", () => {
   }
 });
 
-test("3. 单分类：正常出树，且字号 >= 9px", () => {
+test("3. 单分类：正常出树，且默认视图显示标题（LOD 0）", () => {
   const cats = [mkCat("科技", [15, 15, 15, 15, 15, 4])];
   const g = layoutTree(cats);
   assert.equal(g.leaves.length, 79);
@@ -68,17 +68,18 @@ test("3. 单分类：正常出树，且字号 >= 9px", () => {
   assert.equal(g.sources.length, 6);
   assert.ok(finite(g));
   const f = computeFit(g.bbox, 1440, 784, LAYOUT_DEFAULTS);
-  assert.ok(13 * f.s >= 9, `单分类字号应 >= 9px，实际 ${(13 * f.s).toFixed(2)}px`);
+  // Stage 3.1 起不再用固定字号阈值衡量，而是看「默认视图是否已经能显示标题」
+  assert.equal(lodLevel(f.s), 0, `单分类默认视图应显示标题，实际 LOD ${lodLevel(f.s)}（scale ${f.s.toFixed(3)}）`);
 });
 
-test("4. 五分类：正常出树", () => {
+test("4. 五分类：正常出树，且默认视图不落到聚合层", () => {
   const cats = [mkCat("科技", [15, 15]), mkCat("体育", [15]), mkCat("国内", [15, 15, 15]), mkCat("影视", [15]), mkCat("财经", [15, 15])];
   const g = layoutTree(cats);
   assert.equal(g.categories.length, 5);
   assert.equal(g.leaves.length, 15 * 9);
   assert.ok(finite(g));
   const f = computeFit(g.bbox, 1440, 784, LAYOUT_DEFAULTS);
-  assert.ok(13 * f.s >= 6, `桌面字号应 >= 6px，实际 ${(13 * f.s).toFixed(2)}px`);
+  assert.ok(lodLevel(f.s) <= 1, `默认视图不应落到聚合层（LOD 2），实际 ${lodLevel(f.s)}`);
 });
 
 test("5. 200+ 条：不出现 NaN / Infinity", () => {
@@ -95,13 +96,23 @@ test("6. 分类条目极不均衡：不允许一个分类吃掉整个画布", ()
   const g = layoutTree(cats);
   const total = g.leaves.length;
   const widest = Math.max(...g.categories.map((c) => (c.u1 - c.u0) / 2));
-  assert.ok(widest <= 0.56, `单分类横向份额应 <= 0.56（上限 0.55），实际 ${widest.toFixed(3)}`);
+  assert.ok(widest <= LAYOUT_DEFAULTS.maxCatShare + 0.02, `单分类横向份额应 <= ${LAYOUT_DEFAULTS.maxCatShare}，实际 ${widest.toFixed(3)}`);
+  assert.ok(widest <= 0.7, `Stage 3 要求单分类不得超过 70%，实际 ${(widest * 100).toFixed(0)}%`);
   const shares = g.categories.map((c) => (c.u1 - c.u0) / 2);
-  assert.ok(Math.abs(shares.reduce((a, b) => a + b, 0) - 1) < 1e-6, "份额之和应为 1");
+  // 分类区间必须互不重叠且按顺序排列（u 越小越靠左）
+  for (let i = 1; i < g.categories.length; i++) {
+    assert.ok(g.categories[i].u0 >= g.categories[i - 1].u1 - 1e-6, `分类 ${i} 与 ${i - 1} 的横向区间不得重叠`);
+  }
+  assert.ok(shares.every((s) => s >= 0), "分类横向区间不得为负");
+  // 多来源分类必须有真实横向跨度（单来源分类跨度为 0 属正常）
+  const multi = g.categories.filter((c) => c.sources.length > 1);
+  assert.ok(multi.every((c) => (c.u1 - c.u0) > 0), "多来源分类必须有横向跨度");
   assert.ok(finite(g));
-  // 最小分类也必须拿到可见份额
-  assert.ok(Math.min(...shares) > 0.02, `最小分类份额应 > 0.02，实际 ${Math.min(...shares).toFixed(3)}`);
-  assert.equal(total, 120 + 3 + 1);
+  // 最小分类也必须拿到可见份额：用「簇中心跨度 + 首末簇半宽」衡量，且不得丢数据
+  assert.ok(g.categories.every((c) => c.sources.length >= 1), "每个分类至少有一个来源簇");
+  assert.equal(g.leaves.length, 120 + 3 + 1, "不得丢新闻");
+  const minSpan = Math.min(...g.categories.map((c) => (c.u1 - c.u0) + c.sources[0].clusterW / (2 * 1000)));
+  assert.ok(minSpan > 0, `最小分类的横向跨度应 > 0，实际 ${minSpan.toFixed(3)}`);
 });
 
 test("7. 确定性：无 Math.random（源码静态检查）", () => {
@@ -168,25 +179,33 @@ test("11. 份额分配：上下限生效且归一化", () => {
   f2.forEach((v) => assert.ok(Math.abs(v - 0.25) < 1e-9, "等量分类应均分"));
 });
 
-test("12. computeFit：可读性优先（整树入镜不可读时保持可读缩放）", () => {
+test("12. computeFit：默认整树入镜（结构优先），极端情况才退回聚焦", () => {
   const tiny = { minX: -100, maxX: 100, minY: -100, maxY: 0 };
   const f1 = computeFit(tiny, 1440, 784, LAYOUT_DEFAULTS);
   assert.equal(f1.mode, "fit-all");
-  const huge = { minX: -9000, maxX: 9000, minY: -6000, maxY: 0 };
-  const f2 = computeFit(huge, 1440, 784, LAYOUT_DEFAULTS);
-  assert.equal(f2.mode, "readable-focus");
-  assert.ok(13 * f2.s >= 6, `聚焦模式字号也必须 >= 6px，实际 ${(13 * f2.s).toFixed(2)}px`);
+  assert.ok(f1.s > 1, `小树应被放大，实际 ${f1.s.toFixed(3)}`);
+  // 大树也优先整树入镜（Stage 3.1：第一眼要看到整棵树，标题交给 LOD）
+  const big = { minX: -3000, maxX: 3000, minY: -1800, maxY: 0 };
+  const f2 = computeFit(big, 1440, 784, LAYOUT_DEFAULTS);
+  assert.equal(f2.mode, "fit-all");
+  assert.ok(lodLevel(f2.s) <= 1, `整树入镜时不应落到聚合层，实际 LOD ${lodLevel(f2.s)}`);
+  // 只有缩到极小才退回聚焦，避免出现「一颗芝麻」
+  const huge = { minX: -40000, maxX: 40000, minY: -30000, maxY: 0 };
+  const f3 = computeFit(huge, 1440, 784, LAYOUT_DEFAULTS);
+  assert.equal(f3.mode, "readable-focus");
+  assert.ok(f3.s >= 0.15, `聚焦缩放不应低于 0.15，实际 ${f3.s.toFixed(3)}`);
 });
 
 test("13. LOD 分级：稳定、单调、确定", () => {
   assert.equal(lodLevel(1.0), 0);
+  assert.equal(lodLevel(0.6), 0);
   assert.equal(lodLevel(0.5), 0);
-  assert.equal(lodLevel(0.41), 1);
-  assert.equal(lodLevel(0.3), 1);
-  assert.equal(lodLevel(0.2), 2);
+  assert.equal(lodLevel(0.49), 1);
+  assert.equal(lodLevel(0.2), 1);
+  assert.equal(lodLevel(0.14), 2);
   assert.equal(lodLevel(0.05), 2);
   // 同一输入多次调用结果一致
-  assert.equal(lodLevel(0.42), lodLevel(0.42));
+  assert.equal(lodLevel(0.5), lodLevel(0.5));
 });
 
 test("14. 性能：200+ 条 layout 耗时可接受", () => {

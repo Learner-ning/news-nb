@@ -20,11 +20,17 @@ export const LAYOUT_DEFAULTS = {
   minFrac: 0.06,       // 单分类最小横向份额
   maxFrac: 0.55,       // 单分类最大横向份额（防止一个分类吃掉大部分空间）
   pillH: 26,           // 叶片高度
-  leafGapV: 4,         // 相邻货架（行）的垂直间隙
+  leafGapV: 8,         // 同一来源簇内相邻两行的垂直间隙（新闻之间要有明显间隔）
+  clusterRowCap: 340,  // 单个来源簇内一行的最大宽度（≈一片叶宽 → 每行一片）
+  clusterGapX: 30,     // 相邻来源簇的水平最小间距
+  clusterGapY: 22,     // 相邻来源簇的垂直最小间距
+  srcLead: 96,         // 来源节点到第一条新闻的距离
+  catExtraGap: 90,     // 分类之间额外让出的横向空隙（视觉呼吸空间）
+  maxCatShare: 0.6,    // 单分类横向份额上限（不允许一个分类吃掉绝大部分画布）
   leafGap: 10,         // 同一行内相邻叶片水平间隙
   rCat: 170,           // 主枝节点半径（距 apex）
   rSrc: 300,           // 分枝节点半径
-  rLeaf0: 320,         // 第一行叶片距 apex 的高度
+  rLeaf0: 460,         // 来源簇的起始半径（枝条主体长度）
   trunkRatio: 0.16,    // 树干高度 / 树冠半径
   trunkMin: 150,       // 树干高度下限
   trunkMax: 460,       // 树干高度上限
@@ -139,118 +145,160 @@ function sourceItems(cat) {
  * 每个分类在此宽度上占固定比例（allocateFractions 的 u 区间），
  * 因此分类区域仍是一个真正的角度扇区。
  */
-function placeShelves(catData, uCum, R, k, halfSin, o) {
-  const leaves = [];
-  const remaining = catData.map((c) => c.srcs.map((s) => ({ name: s.name, rem: s.items.slice() })));
-  const unit = o.avgUnit || 260;
-  const shelfStep = o.pillH + o.leafGapV;
-  let h = o.rLeaf0;
-  let guard = 0;
-  while (h <= R + 1 && guard++ < 4000) {
-    const halfW = k * halfSin * Math.sqrt(Math.max(0, R * R - h * h));
-    if (halfW < o.leafMinW * 0.5) break;
-    const y = -h;
-    const shelfIdx = Math.round((h - o.rLeaf0) / shelfStep);
-    for (let ci = 0; ci < catData.length; ci++) {
-      const srcs = remaining[ci];
-      const remTotal = srcs.reduce((s, x) => s + x.rem.length, 0);
-      if (!remTotal) continue;
-      const lo = uCum[ci][0] * halfW;
-      const hi = uCum[ci][1] * halfW;
-      const avail = hi - lo;
-      const capN = Math.max(1, Math.floor(avail / unit));
-      let cursor = lo;
-      // 轮转起点：避免每行都是第一个来源先占满（确定性：由行号决定）
-      const start = shelfIdx % srcs.length;
-      for (let t = 0; t < srcs.length; t++) {
-        const si = (start + t) % srcs.length;
-        const s = srcs[si];
-        if (!s.rem.length) continue;
-        const quota = Math.max(1, Math.ceil((capN * s.rem.length) / remTotal) + 1);
-        let n = 0;
-        while (s.rem.length && n < quota) {
-          const item = s.rem[0];
-          const w = leafWidth(item, o);
-          const need = cursor > lo ? w + o.leafGap : w;
-          if (cursor + need > hi + 0.5) break;
-          s.rem.shift();
-          const cx = cursor + w / 2;
-          cursor += need;
-          n++;
-          leaves.push({
-            id: item.id, item, w, h: o.pillH, x: cx, y, hgt: h, ci, si,
-            sourceName: s.name, u: halfW > 0 ? cx / halfW : 0
-          });
-        }
+/** 把一个来源的叶片排成「自己的竖列」：每行宽度不超过 clusterRowCap
+ *  —— 来源拥有独立排列区域，不与其它来源共享水平货架（那是 Stage 3 的卡片墙来源）
+ */
+function buildCluster(items, o) {
+  const rows = [];
+  let row = [], rowW = 0;
+  for (const item of items) {
+    const w = leafWidth(item, o);
+    if (row.length && rowW + o.leafGap + w > o.clusterRowCap) { rows.push(row); row = []; rowW = 0; }
+    row.push({ item, w });
+    rowW += w + (row.length > 1 ? o.leafGap : 0);
+  }
+  if (row.length) rows.push(row);
+  const widths = rows.map((r) => r.reduce((s, x) => s + x.w, 0) + Math.max(0, r.length - 1) * o.leafGap);
+  const step = o.pillH + o.leafGapV;
+  return { rows, widths, W: Math.max(o.leafMinW, ...widths), H: rows.length * step, step };
+}
+
+const aabbHit = (a, b, gx, gy) =>
+  Math.abs(a.cx - b.cx) < (a.W + b.W) / 2 + gx && Math.abs(a.cy - b.cy) < (a.H + b.H) / 2 + gy;
+
+/** 每个来源一个独立叶片簇，沿扇面散开；半径迭代放大直到所有簇互不重叠（确定性） */
+function placeClusters(catData, o, k, halfSin) {
+  // ① 先建簇（簇宽 = 叶片宽度决定），再按「实际宽度」分配横向份额。
+  //    若按条目数分配，窄簇会白占宽度、宽簇挤在一起，半径被白白撑大数倍。
+  const cats = catData.map((c, ci) => ({
+    ci, cat: c.cat, count: c.count,
+    srcs: c.srcs.map((s, si) => ({ ci, si, name: s.name, cl: buildCluster(s.items, o) }))
+  }));
+  const catW = cats.map((c) => c.srcs.reduce((s2, x) => s2 + x.cl.W + o.clusterGapX, 0) + o.catExtraGap);
+  // 单个分类的横向份额上限（Stage 3 要求：不允许一个分类吃掉绝大部分画布）
+  const totalRaw = catW.reduce((x, y) => x + y, 0) || 1;
+  const capW = totalRaw * o.maxCatShare;
+  let over = 0;
+  const wAdj = catW.map((w) => (w > capW ? capW : w));
+  for (let i = 0; i < wAdj.length; i++) if (catW[i] > capW) over += catW[i] - capW;
+  const underSum = wAdj.reduce((x, y) => x + y, 0) - wAdj.filter((_, i) => catW[i] > capW).reduce((x, y) => x + y, 0);
+  for (let i = 0; i < wAdj.length; i++) {
+    if (catW[i] <= capW && underSum > 0) wAdj[i] += (over * wAdj[i]) / underSum;
+  }
+  const totalW = wAdj.reduce((x, y) => x + y, 0);
+
+  // ② 分类的 u 区间（按宽度比例）
+  const uRange = [];
+  let acc = 0;
+  for (let i = 0; i < cats.length; i++) {
+    const w = totalW > 0 ? wAdj[i] / totalW : 1 / cats.length;
+    uRange.push([2 * acc - 1, 2 * (acc + w) - 1]);
+    acc += w;
+  }
+
+  // ③ 每个来源的 u 中心（在其分类区间内按簇宽分配）
+  const jobs = [];
+  for (let ci = 0; ci < cats.length; ci++) {
+    const srcs = cats[ci].srcs;
+    const wsum = srcs.reduce((x, y) => x + y.cl.W + o.clusterGapX, 0) || 1;
+    const u0 = uRange[ci][0], u1 = uRange[ci][1];
+    let a2 = u0;
+    for (const s2 of srcs) {
+      const share = ((u1 - u0) * (s2.cl.W + o.clusterGapX)) / wsum;
+      const uc = a2 + share / 2;
+      a2 += share;
+      jobs.push({ ci, si: s2.si, name: s2.name, uc, angle: Math.asin(clamp(uc * halfSin, -1, 1)), cl: s2.cl });
+    }
+  }
+
+  // ④ 半径迭代：任一簇与其它簇的 AABB 相交就整体外推（确定性）
+  let rIn = o.rLeaf0;
+  let boxes = [];
+  for (let iter = 0; iter < 120; iter++) {
+    boxes = jobs.map((j) => {
+      const bx = k * rIn * Math.sin(j.angle);
+      const by = -rIn * Math.cos(j.angle);
+      return { cx: bx, cy: by - j.cl.H / 2, W: j.cl.W, H: j.cl.H, bx, by, j };
+    });
+    let hit = false;
+    for (let x = 0; x < boxes.length && !hit; x++) {
+      for (let y = x + 1; y < boxes.length && !hit; y++) {
+        if (aabbHit(boxes[x], boxes[y], o.clusterGapX, o.clusterGapY)) hit = true;
       }
     }
-    h += shelfStep;
+    if (!hit) break;
+    rIn *= 1.05;
   }
-  const left = remaining.reduce((s, c) => s + c.reduce((t, x) => t + x.rem.length, 0), 0);
-  return { leaves, remaining, done: left === 0, left };
+
+  // ⑤ 生成叶片
+  const leaves = [];
+  for (const box of boxes) {
+    const j = box.j;
+    for (let ri = 0; ri < j.cl.rows.length; ri++) {
+      const y = box.by - j.cl.H + (ri + 0.5) * j.cl.step;
+      let lx = box.bx - j.cl.widths[ri] / 2;
+      for (const cell of j.cl.rows[ri]) {
+        leaves.push({
+          id: cell.item.id, item: cell.item, w: cell.w, h: o.pillH,
+          x: lx + cell.w / 2, y, ci: j.ci, si: j.si, sourceName: j.name, uc: j.uc, rIn
+        });
+        lx += cell.w + o.leafGap;
+      }
+    }
+  }
+  return { leaves, jobs, boxes, rIn };
 }
 
 function buildCrown(list, counts, o, k) {
   const spread = o.spreadDeg * DEG;
   const halfSin = Math.sin(spread / 2);
-  const fracs = allocateFractions(counts, o.minFrac, o.maxFrac);
-  const uCum = [];
-  let acc = 0;
-  for (const f of fracs) { uCum.push([2 * acc - 1, 2 * (acc + f) - 1]); acc += f; }
-
-  const total = counts.reduce((a, b) => a + b, 0);
-  const all = [];
-  for (const x of list) for (const s of x.srcs) for (const it of s.items) all.push(it);
-  const avgUnit = all.reduce((s, it) => s + leafWidth(it, o) + o.leafGap, 0) / Math.max(1, all.length);
-  const oo = { ...o, avgUnit };
-
   const catData = list.map((x, ci) => ({ cat: x.cat, count: counts[ci], srcs: x.srcs }));
+  const placed = placeClusters(catData, o, k, halfSin);
 
-  // 树冠半径：按扇形面积与行容量估算，再迭代放大直到所有叶片排下
-  const shelfStep = o.pillH + o.leafGapV;
-  let R = Math.sqrt(Math.max(1, (total * shelfStep * avgUnit) / ((Math.PI / 2) * k * halfSin)));
-  let placed = placeShelves(catData, uCum, R, k, halfSin, oo);
-  for (let iter = 0; iter < 16 && !placed.done; iter++) {
-    R *= 1.06;
-    placed = placeShelves(catData, uCum, R, k, halfSin, oo);
+  // 分类区间由 placeClusters 的 u 分配结果反推（保持一致）
+  const uOf = new Map();
+  for (const j of placed.jobs) {
+    const cur = uOf.get(j.ci) || { min: Infinity, max: -Infinity, sum: 0, n: 0 };
+    cur.min = Math.min(cur.min, j.uc); cur.max = Math.max(cur.max, j.uc);
+    cur.sum += j.uc; cur.n++;
+    uOf.set(j.ci, cur);
   }
 
-  // 分类 / 来源节点
   const categories = [];
   const sources = [];
+  let maxR = 0;
   for (let ci = 0; ci < catData.length; ci++) {
-    const midU = (uCum[ci][0] + uCum[ci][1]) / 2;
-    const a0 = Math.asin(clamp(uCum[ci][0] * halfSin, -1, 1));
-    const a1 = Math.asin(clamp(uCum[ci][1] * halfSin, -1, 1));
+    const u = uOf.get(ci);
+    const midU = u ? u.sum / u.n : 0;
+    const a0 = Math.asin(clamp((u ? u.min : midU) * halfSin, -1, 1));
+    const a1 = Math.asin(clamp((u ? u.max : midU) * halfSin, -1, 1));
     const mid = Math.asin(clamp(midU * halfSin, -1, 1));
     const catNode = polar(o.rCat, mid, k);
     const catRec = {
       key: catData[ci].cat.key, name: catData[ci].cat.name, color: catData[ci].cat.color,
-      count: counts[ci], a0, a1, mid, frac: fracs[ci], u0: uCum[ci][0], u1: uCum[ci][1],
+      count: counts[ci], a0, a1, mid, u0: u ? u.min : midU, u1: u ? u.max : midU,
       node: catNode, x: catNode.x, y: catNode.y, sources: []
     };
-    const nSrc = catData[ci].srcs.length;
-    for (let si = 0; si < nSrc; si++) {
-      const mine = placed.leaves.filter((l) => l.ci === ci && l.si === si);
-      const meanU = mine.length ? mine.reduce((s, l) => s + l.u, 0) / mine.length : midU;
-      const angle = Math.asin(clamp(meanU * halfSin, -1, 1));
-      const node = polar(o.rSrc, angle, k);
+    for (const j of placed.jobs.filter((x) => x.ci === ci)) {
+      const nr = Math.max(o.rCat + 40, placed.rIn - o.srcLead);
+      const node = polar(nr, j.angle, k);
+      const box = placed.boxes.find((bb) => bb.j === j);
       const rec = {
-        name: catData[ci].srcs[si].name, count: catData[ci].srcs[si].items.length,
-        ci, si, meanU, meanAngle: angle,
-        band: mine.length ? [Math.min(...mine.map((l) => l.u)), Math.max(...mine.map((l) => l.u))] : [meanU, meanU],
-        outerH: mine.length ? Math.max(...mine.map((l) => l.hgt)) : o.rSrc,
-        node, x: node.x, y: node.y, catNode
+        name: j.name, count: j.cl.rows.reduce((s2, r) => s2 + r.length, 0), ci, si: j.si,
+        meanU: j.uc, meanAngle: j.angle, outerH: placed.rIn + j.cl.H,
+        node, x: node.x, y: node.y,
+        clusterBase: { x: box.bx, y: box.by }, clusterW: j.cl.W, clusterH: j.cl.H,
+        catNode
       };
       sources.push(rec);
       catRec.sources.push(rec);
+      maxR = Math.max(maxR, placed.rIn + j.cl.H + o.labelPad);
     }
     categories.push(catRec);
   }
-
-  const maxH = placed.leaves.reduce((m, l) => Math.max(m, l.hgt), 0);
-  return { categories, sources, leaves: placed.leaves, maxR: Math.max(maxH, o.rLeaf0), done: placed.done, left: placed.left };
+  return { categories, sources, leaves: placed.leaves, maxR, done: true, left: 0 };
 }
+
 /** 单遍布局（给定拉伸系数），返回几何 + 包围盒 */
 function layoutOnce(cats, o, k) {
   const list = cats.map((c) => ({ cat: c, srcs: sourceItems(c) })).filter((x) => x.srcs.length);
@@ -267,7 +315,8 @@ function layoutOnce(cats, o, k) {
   for (const s of sources) { s.node.y -= trunkH; s.x = s.node.x; s.y = s.node.y; }
   for (const l of leaves) l.y -= trunkH;
   // 枝脊：从来源节点竖直连到第一行叶片底部，让叶片看起来挂在分枝上
-  for (const s of sources) s.spine = { x: s.x, y1: s.y, y2: -o.rLeaf0 - trunkH + o.pillH / 2 };
+  // 枝脊：从来源节点连到它自己那个叶片簇的基点（新闻挂在分枝末端）
+  for (const s of sources) s.spine = { x1: s.x, y1: s.y, x2: s.clusterBase.x, y2: s.clusterBase.y };
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const l of leaves) {
@@ -342,24 +391,29 @@ export function layoutTree(cats, opts = {}) {
   return best;
 }
 
-/** 视口 → fit 变换（可读性优先：不允许把树缩到文字不可读） */
-export function computeFit(bbox, viewW, viewH, o = LAYOUT_DEFAULTS, minScale = 0.465) {
+/** 视口 → fit 变换
+ *
+ * 策略（Stage 3.1 调整）：默认「整树入镜」。
+ * 以前为了保证叶片标题可读会把整树放大到超出视口（readable-focus），
+ * 但那样第一眼只能看到局部。现在的做法是：整树入镜 + 由 LOD 决定是否显示标题
+ * —— 远看是干净的树形结构（叶片只剩色条），放大后才出现标题。
+ * 只有在整树入镜会缩到极小（< minScale）时才退回聚焦，避免出现一颗芝麻。
+ */
+export function computeFit(bbox, viewW, viewH, o = LAYOUT_DEFAULTS, minScale = 0.16) {
   const bw = Math.max(1, bbox.maxX - bbox.minX);
   const bh = Math.max(1, bbox.maxY - bbox.minY);
   const natural = Math.min(viewW / bw, viewH / bh);
-  const s = Math.min(natural, 1.6);
+  const s = Math.min(natural, 1.4);
   if (s >= minScale) {
     return { s, tx: viewW / 2 - ((bbox.minX + bbox.maxX) / 2) * s, ty: viewH - bbox.maxY * s, mode: "fit-all" };
   }
-  // 整树入镜必然不可读 → 保持可读缩放，聚焦树冠中心（树干 + 主枝 + 主要分枝）
   const s2 = minScale;
-  const cx = 0;
   const cy = bbox.minY + bh * 0.55;
-  return { s: s2, tx: viewW / 2 - cx * s2, ty: viewH * 0.62 - cy * s2, mode: "readable-focus" };
+  return { s: s2, tx: viewW / 2, ty: viewH * 0.62 - cy * s2, mode: "readable-focus" };
 }
 
 /** LOD 级别：0 = 完整（叶片标题），1 = 仅叶片形状，2 = 来源聚合 */
-export function lodLevel(scale, o = { textAt: 0.42, sourceAt: 0.24 }) {
+export function lodLevel(scale, o = { textAt: 0.5, sourceAt: 0.15 }) {
   if (scale >= o.textAt) return 0;
   if (scale >= o.sourceAt) return 1;
   return 2;

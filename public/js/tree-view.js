@@ -122,7 +122,7 @@ export class TreeView {
         passSub.appendChild(grp);
         // 枝脊：从来源节点竖直连到第一行叶片，让叶片看起来挂在分枝上
         passSub.appendChild(svgEl("path", {
-          d: `M ${s.spine.x} ${s.spine.y1} L ${s.spine.x} ${s.spine.y2}`, fill: "none",
+          d: `M ${s.spine.x1} ${s.spine.y1} L ${s.spine.x2} ${s.spine.y2}`, fill: "none",
           cls: "spine", "data-cat": c.key, "data-src": si,
           style: `--c:${c.color};--d:${300 + ci * 80 + si * 50}ms`
         }));
