@@ -254,6 +254,8 @@ export class TreeView {
       this.pointers.set(e.pointerId, local(e));
       if (this.pointers.size === 1) {
         this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: this.view.tx, sy: this.view.ty, moved: false };
+      } else {
+        this.drag = null;   // 进入双指手势后不再拖动，避免缩放结束后跳变
       }
     });
 
