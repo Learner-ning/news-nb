@@ -1,7 +1,7 @@
 // 数据层：负责从现有 /api/news 拉取真实新闻，缓存，
 // 并把扁平的 items 转换成“新闻 → 分类 → 来源 → 叶片”的树模型。
 // 不改变现有后端、不引入 Mock 数据。
-import { colorFor, orderTags, textWidth, clamp } from "./helpers.js";
+import { colorFor, orderTags } from "./helpers.js";
 
 const state = {
   items: [],        // 服务端最新一批（已按时间倒序）
@@ -94,12 +94,6 @@ export function buildTreeModel(items) {
 }
 
 const TAG_PRIORITY = ["综合", "科技", "数码", "AI", "财经", "国际", "国内", "体育", "娱乐"];
-
-/** 叶片尺寸：按标题长度估算宽度（带上下限），保证布局不重叠又可读 */
-export function leafWidthFor(title, { min = 96, max = 176, font = 12.6, pad = 18 } = {}) {
-  const w = textWidth(title) * (font / 13) + pad;
-  return clamp(Math.round(w), min, max);
-}
 
 // 每一片叶子的元信息（复用跳转详情逻辑所需的字段）
 export function leafMeta(item) {

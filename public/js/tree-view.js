@@ -18,6 +18,11 @@ const ROW_GAP = 12;       // 同一排相邻叶片间隙
 const CLUSTER_GAP = 62;   // 分类内不同来源(分枝)间距
 const CAT_GAP = 150;      // 主枝(分类)间距
 const X_MARGIN = 120;
+const LEAF_PAD = 24;      // 叶片左右内边距（文字可用宽 = 叶片宽 - LEAF_PAD）
+const LEAF_MIN_W = 108;   // 叶片最小宽度
+const LEAF_MAX_W = 340;   // 叶片最大宽度：标题再长也不会无限扩张
+const LEAF_HEAT_LO = 0.95; // 热度视觉权重下限（heat=0）
+const LEAF_HEAT_HI = 1.15; // 热度视觉权重上限（heat=1）
 
 function svgEl(name, attrs = {}) {
   const n = document.createElementNS(NS, name);
@@ -45,17 +50,31 @@ function stemCurve(x0, y0, x1, y1) {
   return `M ${x0} ${y0} C ${x0 + bow} ${y0 - (y0 - y1) * 0.15}, ${x1 - bow} ${midY + (y0 - y1) * 0.2}, ${x1} ${y1}`;
 }
 
-/** 估算宽度截断标题（CJK 为主） */
-function truncateByWidth(s, w, fontSize) {
-  const avail = w - 24;
+/** 叶片文字：剥掉任何残留 HTML 标签并归一化空白，保证截断永不产生半截标签 */
+function leafText(s) {
+  return String(s ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** 语义边界：优先在这些标点处收尾，避免截出半截词 */
+const BOUNDARY_RE = /[，。！？；：、,.!?;:）)】」》”"'\/|·—…%]/;
+
+/** 按真实文字宽度截断标题（CJK 约 13.5px / 拉丁数字约 7.6px，13px 字号） */
+function truncateByWidth(s, w) {
+  const avail = w - LEAF_PAD;
+  const text = leafText(s);
   if (avail <= 4) return "…";
-  const sc = fontSize / 13;
+  if (textWidth(text) <= avail) return text;
   let out = "";
-  for (const ch of String(s ?? "")) {
-    if (textWidth(out + ch) * sc > avail) return (out || "…") + "…";
+  let lastBoundary = 0;
+  for (const ch of text) {
+    if (textWidth(out + ch) > avail) break;
     out += ch;
+    if (BOUNDARY_RE.test(ch)) lastBoundary = out.length;
   }
-  return out;
+  // 靠后位置存在语义边界时在边界处收尾（丢弃不足 20% 的尾巴），
+  // 避免截出半截词；否则退回按宽度截断。
+  if (lastBoundary >= out.length * 0.8) return out.slice(0, lastBoundary) + "…";
+  return (out || "…") + "…";
 }
 
 export class TreeView {
@@ -82,12 +101,12 @@ export class TreeView {
 
   leafW(item) {
     if (!this._leafW.has(item.id)) {
-      const len = String(item.title || "").length;
-      let w = Math.max(96, Math.min(190, 88 + len * 2.8));
-      // 热度影响叶片宽度（视觉权重）
-      const heat = Number(item.heatScore);
-      if (Number.isFinite(heat) && heat > 0) w = w * (0.86 + heat * 0.55);
-      this._leafW.set(item.id, Math.max(94, Math.min(232, Math.round(w))));
+      // 按真实文字宽度估算「完整标题所需宽度」，再按热度做视觉权重微调；
+      // 上限 LEAF_MAX_W 保证叶片不会随标题变长而无限扩张。
+      const need = Math.min(textWidth(leafText(item.title)) + LEAF_PAD, LEAF_MAX_W);
+      const heat = Math.min(1, Math.max(0, Number(item.heatScore) || 0));
+      const w = need * (LEAF_HEAT_LO + heat * (LEAF_HEAT_HI - LEAF_HEAT_LO));
+      this._leafW.set(item.id, Math.round(Math.min(LEAF_MAX_W, Math.max(LEAF_MIN_W, w))));
     }
     return this._leafW.get(item.id);
   }
@@ -185,6 +204,8 @@ export class TreeView {
   build(cats) {
     this.world.innerHTML = "";
     this.leafElm.clear();
+    // 叶片宽度依赖 heatScore，刷新数据后热度会变，必须清掉宽度缓存重算。
+    this._leafW.clear();
     this.svg.classList.toggle("no-tree", !cats || !cats.length);
     if (!cats || !cats.length) return;
 
@@ -276,7 +297,7 @@ export class TreeView {
           // 纯标题叶片：只显示新闻标题
           g.appendChild(svgEl("text", {
             x: leaf.x, y: leaf.topY - Math.round(PILL_H / 2) + 4.5, "text-anchor": "middle",
-            cls: "leaf-title", text: truncateByWidth(leaf.item.title, leaf.w, 13)
+            cls: "leaf-title", text: truncateByWidth(leaf.item.title, leaf.w)
           }));
           passLeaves.appendChild(g);
           this.leafElm.set(leaf.id, { g, item: leaf.item });
