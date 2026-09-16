@@ -132,8 +132,15 @@ function setBgPhoto(src) {
 // ---------------- 状态与数据 ----------------
 function setStatus() {
   const st = getState();
-  const label = getUpdatedLabel();
-  els.topStatus.textContent = `${st.items.length} 条 · ${label} 更新${st.stale ? " · 缓存" : ""}${st.errors?.length ? " · 部分源不可用" : ""}`;
+  const parts = [];
+  if (st.items.length) parts.push(`${st.items.length} 条`);
+  else parts.push("暂无数据");
+  if (st.warming && !st.items.length) parts.push("正在更新…");
+  else parts.push(`${getUpdatedLabel()} 更新`);
+  if (st.fromCache) parts.push("缓存数据");
+  if (st.stale) parts.push("缓存");
+  if (st.errors?.length) parts.push("部分源不可用");
+  els.topStatus.textContent = parts.join(" · ");
 }
 
 function flatFiltered() {
@@ -177,10 +184,18 @@ function showDetail() {
 function rebuildTree() {
   const cats = state.data || [];
   const shown = state.cat === "all" ? cats : cats.filter((c) => c.key === state.cat);
-  els.treeHint.textContent =
-    shown.length ? "拖动移动 · 滚轮/捏合缩放 · 悬停叶片看新闻 · 点击进详情"
-      : "新闻源暂时不可用，请稍后刷新。";
+  const warming = getState().warming && !state.items.length;
+  els.treeHint.textContent = shown.length
+    ? "拖动移动 · 滚轮/捏合缩放 · 悬停叶片看新闻 · 点击进详情"
+    : warming ? "正在更新新闻……" : "新闻源暂时不可用，请稍后刷新。";
   tree.build(shown);
+}
+
+/** 按当前模式重绘当前视图 */
+function renderCurrent() {
+  if (state.mode === "tree") rebuildTree();
+  else if (state.mode === "list") renderList();
+  else renderBoard();
 }
 
 function renderList() {
@@ -286,15 +301,43 @@ function pickCat(key) {
 }
 
 // ---------------- 数据加载 ----------------
+const WARM_POLL_INTERVAL_MS = 3000;
+const WARM_POLL_MAX = 20;   // 最多轮询 20 次（约 60 秒）
+let warmTimer = null;
+
+/** 服务端 warming 时轮询：抓取完成后自动替换内容 */
+function startWarmPoll() {
+  if (warmTimer) return;
+  let tries = 0;
+  const tick = async () => {
+    warmTimer = null;
+    tries++;
+    const st = getState();
+    if (st.items.length || tries > WARM_POLL_MAX) return;
+    await loadNews();
+    const s2 = getState();
+    setStatus();
+    if (s2.items.length) {
+      state.items = s2.items;
+      state.data = buildTreeModel(state.items);
+      renderCatBar();
+      renderCurrent();
+      return;
+    }
+    if (s2.warming) warmTimer = setTimeout(tick, WARM_POLL_INTERVAL_MS);
+  };
+  warmTimer = setTimeout(tick, WARM_POLL_INTERVAL_MS);
+}
+
 async function initData({ force = false } = {}) {
   await loadNews({ force });
   setStatus();
   state.items = getState().items;
   state.data = buildTreeModel(state.items);
   renderCatBar();
-  if (state.mode === "tree") rebuildTree();
-  else if (state.mode === "list") renderList();
-  else renderBoard();
+  renderCurrent();
+  // 服务端缓存为空、后台正在抓取 → 轮询等待
+  if (!state.items.length && getState().warming) startWarmPoll();
 }
 
 // ---------------- 图片压缩（避免 localStorage 超限） ----------------

@@ -4,9 +4,11 @@
 import { colorFor, orderTags } from "./helpers.js";
 
 const state = {
-  items: [],        // 服务端最新一批（已按时间倒序）
+  items: [],        // 服务端最新一批
   updatedAt: 0,
   stale: false,
+  warming: false,   // 服务端缓存为空、后台正在抓取
+  throttled: false, // 刷新被节流（距上次强制刷新不足最小间隔）
   errors: [],
   loading: false
 };
@@ -17,15 +19,28 @@ export async function loadNews({ force = false, source = "all" } = {}) {
   try {
     const qs = new URLSearchParams({ source });
     if (force) qs.set("refresh", "1");
-    const r = await fetch(`/api/news?${qs.toString()}`);
-    if (!r.ok) throw new Error("bad response " + r.status);
+    const r = await fetch(`/api/news?${qs.toString()}`, { cache: "no-store" });
+
+    // 202：服务端缓存为空、后台正在抓取。保留现有数据，交给上层轮询。
+    if (r.status === 202) {
+      const d = await r.json().catch(() => ({}));
+      state.warming = d.warming !== false;
+      state.errors = Array.isArray(d.errors) ? d.errors : [];
+      return state;
+    }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+
     const d = await r.json();
-    state.items = d.items || [];
-    state.updatedAt = d.updatedAt ? new Date(d.updatedAt).getTime() : Date.now();
+    const items = Array.isArray(d.items) ? d.items : [];
+    if (items.length) state.items = items;
+    else if (!state.items.length) state.items = [];
+    if (d.updatedAt) state.updatedAt = new Date(d.updatedAt).getTime();
     state.stale = Boolean(d.stale);
-    state.errors = d.errors || [];
+    state.warming = Boolean(d.warming);
+    state.throttled = Boolean(d.throttled);
+    state.errors = Array.isArray(d.errors) ? d.errors : [];
   } catch (e) {
-    state.errors = [e.message];
+    state.errors = [{ source: "client", message: e.message || "请求失败" }];
   } finally {
     state.loading = false;
   }
