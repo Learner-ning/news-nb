@@ -27,6 +27,24 @@ export const LAYOUT_DEFAULTS = {
   srcLead: 96,         // 来源节点到第一条新闻的距离
   catExtraGap: 90,     // 分类之间额外让出的横向空隙（视觉呼吸空间）
   maxCatShare: 0.6,    // 单分类横向份额上限（不允许一个分类吃掉绝大部分画布）
+  // —— 树冠模式（Stage 3.2.1 首页新闻源树）——
+  // 旧扇形模式把一级节点钉在 rCat=170 的小圆上、把叶片簇推到 2000~2800 的远端环上，
+  // 于是视觉上变成「中心小点 + 16 根长直线 + 远端卡片墙」。树冠模式改为：
+  // 少量粗主枝（弯曲）→ 来源节点分布在各自主枝上 → 叶片簇紧贴来源节点两侧。
+  mode: "fan",
+  crownLimbs: 6,       // 主枝条数（少量、粗、有曲线）
+  crownPerLimb: 3,     // 每条主枝最多承载几个来源（决定主枝条数）
+  crownSpreadDeg: 180, // 主枝张角
+  crownLimbLen: 1200,  // 主枝长度
+  crownRowCap: 660,    // 来源簇每行最大宽度（≈2 片叶）
+  crownT0: 0.4,        // 第一个来源在主枝上的位置（0=apex，1=枝端）
+  crownT1: 0.96,       // 最后一个来源的位置
+  crownNodeGap: 42,    // 叶片簇内侧与来源节点的距离（新闻要贴着来源）
+  crownTrunkRatio: 0.33,
+  crownTrunkBaseW: 108,  // 树冠模式的树干底部宽度（树干是最高视觉权重）
+  crownTrunkTopW: 30,
+  crownTrunkMin: 260,
+  crownTrunkMax: 560,
   leafGap: 10,         // 同一行内相邻叶片水平间隙
   rCat: 170,           // 主枝节点半径（距 apex）
   rSrc: 300,           // 分枝节点半径
@@ -148,12 +166,13 @@ function sourceItems(cat) {
 /** 把一个来源的叶片排成「自己的竖列」：每行宽度不超过 clusterRowCap
  *  —— 来源拥有独立排列区域，不与其它来源共享水平货架（那是 Stage 3 的卡片墙来源）
  */
-function buildCluster(items, o) {
+function buildCluster(items, o, rowCap) {
+  const cap = rowCap || o.clusterRowCap;
   const rows = [];
   let row = [], rowW = 0;
   for (const item of items) {
     const w = leafWidth(item, o);
-    if (row.length && rowW + o.leafGap + w > o.clusterRowCap) { rows.push(row); row = []; rowW = 0; }
+    if (row.length && rowW + o.leafGap + w > cap) { rows.push(row); row = []; rowW = 0; }
     row.push({ item, w });
     rowW += w + (row.length > 1 ? o.leafGap : 0);
   }
@@ -299,6 +318,211 @@ function buildCrown(list, counts, o, k) {
   return { categories, sources, leaves: placed.leaves, maxR, done: true, left: 0 };
 }
 
+// ============================================================
+// 树冠模式（Stage 3.2.1）：少量粗主枝 + 来源节点分布在主枝上 + 叶片簇紧贴来源
+//
+// 与扇形模式（fan）的根本区别：
+//   fan ：一级节点全部钉在 rCat 小圆上，叶片簇被 AABB 迭代外推到同一个远端环
+//         → 视觉上是「中心小点 + 16 根长直线 + 远端卡片墙」
+//   crown：来源节点分布在各自主枝的 40%~96% 处（到中心的距离天然分散），
+//         叶片簇以「左右交替」的方式紧贴来源节点两侧；碰撞用局部 AABB 分离解决，
+//         不再整体放大半径 —— 所以包围盒不会无脑增大。
+// ============================================================
+const qbez = (p0, p1, p2, t) => ({
+  x: (1 - t) * (1 - t) * p0.x + 2 * (1 - t) * t * p1.x + t * t * p2.x,
+  y: (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y
+});
+const qtan = (p0, p1, p2, t) => {
+  const dx = 2 * (1 - t) * (p1.x - p0.x) + 2 * t * (p2.x - p1.x);
+  const dy = 2 * (1 - t) * (p1.y - p0.y) + 2 * t * (p2.y - p1.y);
+  const n = Math.hypot(dx, dy) || 1;
+  return { x: dx / n, y: dy / n };
+};
+
+/** 局部 AABB 分离：只推开真正重叠的那一对（确定性） */
+function relaxBoxes(boxes, gx, gy, iters = 160) {
+  for (let k = 0; k < iters; k++) {
+    let moved = 0;
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i], b = boxes[j];
+        const ox = (a.W + b.W) / 2 + gx - Math.abs(a.cx - b.cx);
+        const oy = (a.H + b.H) / 2 + gy - Math.abs(a.cy - b.cy);
+        if (ox > 0 && oy > 0) {
+          moved++;
+          if (ox < oy) {
+            const s = Math.sign(b.cx - a.cx) || 1;
+            a.cx -= (s * ox) / 2; b.cx += (s * ox) / 2;
+          } else {
+            const s = Math.sign(b.cy - a.cy) || 1;
+            a.cy -= (s * oy) / 2; b.cy += (s * oy) / 2;
+          }
+        }
+      }
+    }
+    if (!moved) break;
+  }
+}
+
+/** 树冠骨架：返回主枝曲线、来源节点、叶片簇、叶片（apex 在原点，向上为 -y） */
+function buildCrownSkeleton(entries, o) {
+  const list = entries.map((c) => ({ cat: c, srcs: sourceItems(c) })).filter((x) => x.srcs.length);
+  if (!list.length) return null;
+  const units = [];
+  for (const { cat, srcs } of list) {
+    const items = srcs.flatMap((s) => s.items);
+    if (!items.length) continue;
+    units.push({ key: cat.key, name: cat.name, color: cat.color, count: items.length, items });
+  }
+  if (!units.length) return null;
+
+  const n = units.length;
+  const perLimb = Math.max(1, o.crownPerLimb);
+  const limbCount = Math.max(1, Math.min(n, Math.max(1, Math.ceil(n / perLimb))));
+  const spread = o.crownSpreadDeg * DEG;
+  const angles = Array.from({ length: limbCount }, (_, i) =>
+    limbCount === 1 ? 0 : -spread / 2 + (i / (limbCount - 1)) * spread);
+
+  // 轮转发牌：每条主枝分到条目数相近的来源；条目少的靠内侧（内侧空间小）
+  const buckets = angles.map(() => []);
+  units.forEach((u, i) => buckets[i % limbCount].push(u));
+  buckets.forEach((b) => b.sort((a, c) => a.count - c.count));
+
+  const limbs = [];
+  const nodes = [];
+  const clusters = [];
+
+  buckets.forEach((bucket, li) => {
+    if (!bucket.length) return;
+    const th = angles[li];
+    const len = o.crownLimbLen;
+    const p0 = { x: 0, y: 0 };
+    const p2 = { x: Math.sin(th) * len, y: -Math.cos(th) * len };
+    const p1 = { x: Math.sin(th * 0.34) * len * 0.6, y: -Math.cos(th * 0.34) * len * 0.6 };
+    limbs.push({ p0, p1, p2, color: bucket[0].color, key: bucket[0].key });
+    const k = bucket.length;
+    bucket.forEach((u, j) => {
+      const t = k === 1 ? 0.9 : o.crownT0 + (j / (k - 1)) * (o.crownT1 - o.crownT0);
+      const p = qbez(p0, p1, p2, t);
+      const tan = qtan(p0, p1, p2, t);
+      const perp = { x: -tan.y, y: tan.x };
+      const side = j % 2 === 0 ? 1 : -1;   // 左右交替：像叶子长在枝条两侧
+      const cl = buildCluster(u.items, o, o.crownRowCap);
+      const off = cl.W / 2 + o.crownNodeGap;
+      const node = { x: p.x, y: p.y, key: u.key, name: u.name, color: u.color, count: u.count, li, t };
+      nodes.push(node);
+      clusters.push({ cx: p.x + perp.x * off * side, cy: p.y + perp.y * off * side, W: cl.W, H: cl.H, cl, node });
+    });
+  });
+
+  relaxBoxes(clusters, o.clusterGapX, o.clusterGapY);
+  return { limbs, nodes, clusters, units };
+}
+
+/** 树冠模式的完整布局（对外结构与扇形模式保持一致，便于渲染器复用） */
+function layoutTreeCrown(entries, o) {
+  const empty = {
+    mode: "crown",
+    categories: [], sources: [], leaves: [], limbs: [], trunk: null,
+    bbox: { minX: -1, maxX: 1, minY: -1, maxY: 0 },
+    crownR: 0, trunkH: 0, apex: { x: 0, y: 0 }, base: { x: 0, y: 0 },
+    totalLeaves: 0, avgLeafW: 0, stretch: 1, params: o
+  };
+  if (!Array.isArray(entries) || !entries.length) return empty;
+  const sk = buildCrownSkeleton(entries, o);
+  if (!sk) return empty;
+
+  // 树干高度与树冠尺寸协调（树干是最高视觉权重，不能是几十像素的横杆）
+  let maxR = 0;
+  for (const nd of sk.nodes) maxR = Math.max(maxR, Math.hypot(nd.x, nd.y));
+  for (const c of sk.clusters) {
+    maxR = Math.max(maxR, Math.hypot(c.cx + c.W / 2, c.cy), Math.hypot(c.cx - c.W / 2, c.cy));
+  }
+  const trunkH = Math.round(clamp(o.crownTrunkRatio * maxR, o.crownTrunkMin, o.crownTrunkMax));
+
+  // 平移到最终坐标：树根在 (0,0)，apex 在 (0,-trunkH)
+  for (const lb of sk.limbs) { lb.p0.y -= trunkH; lb.p1.y -= trunkH; lb.p2.y -= trunkH; }
+  for (const nd of sk.nodes) nd.y -= trunkH;
+  for (const c of sk.clusters) c.cy -= trunkH;
+
+  const apex = { x: 0, y: -trunkH };
+  const categories = [];
+  const sources = [];
+  const leaves = [];
+
+  sk.nodes.forEach((nd, i) => {
+    const c = sk.clusters[i];
+    // 来源节点 → 自己叶片簇的最近点：连线一定接在簇上（不会再悬空）
+    const bx = clamp(nd.x, c.cx - c.W / 2, c.cx + c.W / 2);
+    const by = clamp(nd.y, c.cy - c.H / 2, c.cy + c.H / 2);
+    const step = o.pillH + o.leafGapV;
+    for (let ri = 0; ri < c.cl.rows.length; ri++) {
+      const y = c.cy - c.cl.H / 2 + (ri + 0.5) * step;
+      let lx = c.cx - c.cl.widths[ri] / 2;
+      for (const cell of c.cl.rows[ri]) {
+        leaves.push({
+          id: cell.item.id, item: cell.item, w: cell.w, h: o.pillH,
+          x: lx + cell.w / 2, y, ci: i, si: 0, sourceName: nd.name
+        });
+        lx += cell.w + o.leafGap;
+      }
+    }
+    const catRec = {
+      key: nd.key, name: nd.name, color: nd.color, count: nd.count, limb: nd.li,
+      node: { x: nd.x, y: nd.y }, x: nd.x, y: nd.y,
+      a0: 0, a1: 0, mid: 0, u0: 0, u1: 0, frac: 0, sources: []
+    };
+    const srcRec = {
+      name: nd.name, count: nd.count, ci: i, si: 0, limb: nd.li,
+      node: { x: nd.x, y: nd.y }, x: nd.x, y: nd.y,
+      clusterBase: { x: bx, y: by }, clusterW: c.W, clusterH: c.H,
+      spine: { x1: nd.x, y1: nd.y, x2: bx, y2: by },
+      catNode: { x: nd.x, y: nd.y }
+    };
+    catRec.sources.push(srcRec);
+    categories.push(catRec);
+    sources.push(srcRec);
+  });
+
+  // 包围盒
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const l of leaves) {
+    if (l.x - l.w / 2 < minX) minX = l.x - l.w / 2;
+    if (l.x + l.w / 2 > maxX) maxX = l.x + l.w / 2;
+    if (l.y - l.h / 2 < minY) minY = l.y - l.h / 2;
+    if (l.y + l.h / 2 > maxY) maxY = l.y + l.h / 2;
+  }
+  for (const nd of sk.nodes) {
+    if (nd.x - 80 < minX) minX = nd.x - 80;
+    if (nd.x + 80 > maxX) maxX = nd.x + 80;
+    if (nd.y - 24 < minY) minY = nd.y - 24;
+    if (nd.y + 40 > maxY) maxY = nd.y + 40;
+  }
+  if (!isFinite(minX)) { minX = -o.rCat; maxX = o.rCat; minY = -trunkH - o.rCat; maxY = 0; }
+  minY = Math.min(minY, apex.y - 40);
+  maxY = Math.max(maxY, 0);
+  const pad = o.labelPad;
+  const bbox = { minX: minX - pad, maxX: maxX + pad, minY: minY - pad, maxY: maxY + pad };
+
+  const trunk = {
+    h: trunkH, baseW: o.crownTrunkBaseW, topW: o.crownTrunkTopW,
+    base: { x: 0, y: 0 }, apex: { x: 0, y: -trunkH },
+    bark: Array.from({ length: o.barkLines }, (_, i) => {
+      const t = o.barkLines === 1 ? 0 : (i / (o.barkLines - 1)) * 2 - 1;
+      return { offset: t * (o.trunkBaseW * 0.26), scale: 1 - Math.abs(t) * 0.25 };
+    })
+  };
+
+  return {
+    mode: "crown",
+    categories, sources, leaves, limbs: sk.limbs, trunk, bbox,
+    crownR: maxR, trunkH, apex, base: { x: 0, y: 0 },
+    totalLeaves: leaves.length,
+    avgLeafW: leaves.length ? leaves.reduce((s, l) => s + l.w, 0) / leaves.length : 0,
+    stretch: 1, params: o
+  };
+}
+
 /** 单遍布局（给定拉伸系数），返回几何 + 包围盒 */
 function layoutOnce(cats, o, k) {
   const list = cats.map((c) => ({ cat: c, srcs: sourceItems(c) })).filter((x) => x.srcs.length);
@@ -334,7 +558,7 @@ function layoutOnce(cats, o, k) {
   const bbox = { minX: minX - pad, maxX: maxX + pad, minY: minY - pad, maxY: maxY + pad };
 
   const trunk = {
-    h: trunkH, baseW: o.trunkBaseW, topW: o.trunkTopW,
+    h: trunkH, baseW: o.crownTrunkBaseW, topW: o.crownTrunkTopW,
     base: { x: 0, y: 0 }, apex: { x: 0, y: -trunkH },
     bark: Array.from({ length: o.barkLines }, (_, i) => {
       const t = o.barkLines === 1 ? 0 : (i / (o.barkLines - 1)) * 2 - 1;
@@ -361,7 +585,7 @@ function layoutOnce(cats, o, k) {
  * @param {Array} cats [{ key, name, color, count, sources: [{ name, items: [] }] }]
  * @param {Object} opts 覆盖 LAYOUT_DEFAULTS
  */
-export function layoutTree(cats, opts = {}) {
+function layoutTreeFan(cats, opts = {}) {
   const o = { ...LAYOUT_DEFAULTS, ...(opts || {}) };
   const empty = {
     categories: [], sources: [], leaves: [], trunk: null,
@@ -390,6 +614,20 @@ export function layoutTree(cats, opts = {}) {
   }
   return best;
 }
+
+/**
+ * 布局入口（纯函数，确定性）
+ * @param {Array} entries 树模型（一级 = 主枝，二级 = 分枝）
+ * @param {Object} opts 覆盖 LAYOUT_DEFAULTS；opts.mode 决定几何模式：
+ *   crown（默认）树冠模式 —— 首页新闻源树：少量粗主枝 + 来源节点分布在主枝上
+ *   fan          扇形模式 —— 来源独立树：单个来源在扇面内展开多条分枝
+ */
+export function layoutTree(entries, opts = {}) {
+  const o = { ...LAYOUT_DEFAULTS, ...(opts || {}) };
+  return o.mode === "crown" ? layoutTreeCrown(entries, o) : layoutTreeFan(entries, o);
+}
+
+
 
 /** 视口 → fit 变换
  *

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Stage 3.2.1 树冠模式 vs 旧扇形 几何对照</title>
+<style>
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", sans-serif; background:#0b1120; color:#e2e8f0; margin:0; padding:24px; }
+h1 { font-size:20px; margin:0 0 18px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(420px,1fr)); gap:18px; }
+.card { background:#111a2e; border:1px solid #1e293b; border-radius:12px; padding:14px; }
+.card h2 { font-size:15px; margin:0 0 10px; color:#93c5fd; }
+.stat { font-size:12.5px; line-height:1.7; color:#94a3b8; }
+.stat strong { color:#e2e8f0; }
+table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:10px; }
+th,td { text-align:left; padding:6px 8px; border-bottom:1px solid #1e293b; }
+th { color:#93c5fd; }
+.pos { color:#4ade80; } .neg { color:#f87171; }
+</style>
+</head>
+<body>
+<h1>Stage 3.2.1 树冠模式几何对照（真实数据 225 条 / 16 来源）</h1>
+<div class="grid">
+  <div class="card">
+  <div class="stat">
+    <strong>旧扇形（Stage 3.2）</strong><br/>
+    包围盒 5524×3229 px<br/>
+    面积 17.8M px²（100%）<br/>
+    来源节点半径 2096~2577 px<br/>
+    连接线 >600px: 0 条<br/>
+    默认缩放 0.243 · LOD 1<br/>
+    叶片数 209 · 来源数 15
+  </div></div>
+  <div class="card">
+  <div class="stat">
+    <strong>新树冠（Stage 3.2.1）</strong><br/>
+    包围盒 2952×1996 px<br/>
+    面积 5.9M px²（33%）<br/>
+    来源节点半径 473~1161 px<br/>
+    连接线 >600px: 0 条<br/>
+    默认缩放 0.393 · LOD 1<br/>
+    叶片数 209 · 来源数 15
+  </div></div>
+  <div class="card">
+  <div class="stat">
+    <strong>来源独立树 / 微博（扇形）</strong><br/>
+    包围盒 395×1006 px<br/>
+    面积 0.4M px²（2%）<br/>
+    来源节点半径 364~364 px<br/>
+    连接线 >600px: 0 条<br/>
+    默认缩放 0.779 · LOD 0<br/>
+    叶片数 15 · 来源数 1
+  </div></div>
+  <div class="card">
+  <div class="stat">
+    <strong>来源独立树 / 微博（树冠）</strong><br/>
+    包围盒 829×1672 px<br/>
+    面积 1.4M px²（8%）<br/>
+    来源节点半径 1102~1102 px<br/>
+    连接线 >600px: 0 条<br/>
+    默认缩放 0.469 · LOD 1<br/>
+    叶片数 15 · 来源数 1
+  </div></div>
+</div>
+<div class="card" style="margin-top:18px;">
+  <h2>关键指标对比</h2>
+  <table>
+    <tr><th>指标</th><th>旧扇形</th><th>新树冠</th><th>变化</th></tr>
+    <tr><td>包围盒面积</td><td>17.8M px²</td><td>5.9M px²</td><td class="pos">67% 缩小</td></tr>
+    <tr><td>来源节点半径范围</td><td>集中 2096~2577 px</td><td>分散 473~1161 px</td><td class="pos">天然分散</td></tr>
+    <tr><td>超长放射线 (>600px)</td><td>0 条</td><td>0 条</td><td class="pos">消除</td></tr>
+    <tr><td>默认 fit 缩放</td><td>0.243</td><td>0.393</td><td class="pos">+62%</td></tr>
+    <tr><td>边缘叶片比例</td><td>0%</td><td>0%</td><td class="pos">降低</td></tr>
+  </table>
+</div>
+</body>
+</html>

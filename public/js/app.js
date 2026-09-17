@@ -250,8 +250,12 @@ function rebuildTree() {
         ? "拖动移动 · 滚轮/捏合缩放 · 悬停叶片看新闻 · 点击叶片进详情"
         : "拖动移动 · 滚轮/捏合缩放 · 点击新闻源进入它的新闻树 · 点击叶片看详情")
     : warming ? "正在更新新闻……" : "新闻源暂时不可用，请稍后刷新。";
-  // 首页：一级节点就是新闻源；来源页：一级是来源，二级是分组
-  tree.build(model, { showSourceLayer: Boolean(state.source) });
+  // 首页用「树冠模式」：少量粗主枝 + 来源节点分布在各自主枝上（Stage 3.2.1）
+  // 来源页用「扇形模式」：单个来源在扇面内展开多条分枝（Stage 3.2 已验证，保持不变）
+  tree.build(model, {
+    showSourceLayer: Boolean(state.source),
+    mode: state.source ? "fan" : "crown"
+  });
 }
 
 /** 按当前模式重绘当前视图 */

@@ -827,3 +827,14 @@ body.no-cat { --cat-h: 0px; }
 /* 来源页：为顶部导航条留出空间，避免遮挡树冠顶部 */
 body.source-mode #stage { padding-top: 46px; }
 @media (max-width: 420px) { body.source-mode #stage { padding-top: 42px; } }
+
+/* ===== Stage 3.2.1：树冠模式的弯曲主枝（明显比新闻连接枝粗）===== */
+.limb {
+  stroke: var(--c); stroke-width: 11; stroke-linecap: round; opacity: .92;
+  stroke-dasharray: 1; stroke-dashoffset: 1;
+  transition: stroke-dashoffset .55s cubic-bezier(.3, .7, .3, 1) var(--d, 0ms), stroke-width .16s, opacity .16s;
+}
+.grow-on .limb { stroke-dashoffset: 0; }
+.limb.on { stroke-width: 14; opacity: 1; filter: drop-shadow(0 0 10px var(--c)); }
+/* 树干在树冠模式下更高更粗，是最高视觉权重 */
+.src-node .sn-name { letter-spacing: .4px; }

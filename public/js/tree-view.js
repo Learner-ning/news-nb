@@ -69,6 +69,7 @@ export class TreeView {
    */
   build(entries, opts = {}) {
     const showSourceLayer = opts.showSourceLayer !== false;
+    const mode = opts.mode || (showSourceLayer ? undefined : "crown");
     this.showSourceLayer = showSourceLayer;
     this.world.innerHTML = "";
     this.leafElm.clear();
@@ -80,7 +81,7 @@ export class TreeView {
       return;
     }
 
-    const g = layoutTree(entries, LAYOUT_DEFAULTS);
+    const g = layoutTree(entries, { ...LAYOUT_DEFAULTS, mode });
     this.geom = g;
     this._bbox = g.bbox;
 
@@ -113,17 +114,30 @@ export class TreeView {
     }
     passTrunk.appendChild(bark);
 
-    // —— 主枝（树干顶端 → 一级节点）——
+    // —— 主枝 ——
     const apex = g.apex;
-    g.categories.forEach((c, ci) => {
-      const grp = svgEl("g", { cls: "bcat", "data-cat": c.key });
-      grp.appendChild(svgEl("path", {
-        d: branchPath(apex, c.node), fill: "none",
-        cls: "branch-main grow-path", pathLength: 1,
-        style: `--c:${c.color};--d:${100 + ci * 80}ms`
-      }));
-      passMain.appendChild(grp);
-    });
+    if (g.limbs && g.limbs.length) {
+      // 树冠模式：少量「弯曲粗主枝」，来源节点分布在各自主枝上
+      g.limbs.forEach((lb, li) => {
+        const grp = svgEl("g", { cls: "bcat", "data-cat": lb.key });
+        grp.appendChild(svgEl("path", {
+          d: `M ${lb.p0.x} ${lb.p0.y} Q ${lb.p1.x} ${lb.p1.y} ${lb.p2.x} ${lb.p2.y}`,
+          fill: "none", cls: "limb grow-path", pathLength: 1, "data-limb": li,
+          style: `--c:${lb.color};--d:${110 + li * 70}ms`
+        }));
+        passMain.appendChild(grp);
+      });
+    } else {
+      g.categories.forEach((c, ci) => {
+        const grp = svgEl("g", { cls: "bcat", "data-cat": c.key });
+        grp.appendChild(svgEl("path", {
+          d: branchPath(apex, c.node), fill: "none",
+          cls: "branch-main grow-path", pathLength: 1,
+          style: `--c:${c.color};--d:${100 + ci * 80}ms`
+        }));
+        passMain.appendChild(grp);
+      });
+    }
 
     if (showSourceLayer) {
       // —— 两级：分类节点 → 来源节点 → 叶片簇 ——
@@ -215,6 +229,7 @@ export class TreeView {
         const wl = Math.min(240, Math.max(104, textWidth(name) + 40));
         const grp = svgEl("g", {
           cls: "src-node", "data-srcnode": c.key,
+          "data-limb": c.limb == null ? null : String(c.limb),
           role: "button", tabindex: "0",
           "aria-label": `${name}，${c.count} 条新闻，进入独立新闻树`,
           style: `--c:${c.color};--d:${170 + ci * 70}ms`
@@ -432,7 +447,7 @@ export class TreeView {
     });
   }
 
-  /** 新闻源节点 hover 高亮 */
+  /** 新闻源节点 hover 高亮（树冠模式下同时高亮它所在的那条主枝） */
   setSourceHover(key) {
     if (this._srcHover === key) return;
     this.clearSourceHover();
@@ -440,7 +455,9 @@ export class TreeView {
     const rec = this.srcElm.get(key);
     if (rec) rec.g.classList.add("active");
     const esc2 = (v) => CSS.escape(String(v));
-    this.world.querySelectorAll(`.bcat[data-cat="${esc2(key)}"]`).forEach((n) => n.classList.add("on"));
+    const limb = rec?.g.getAttribute("data-limb");
+    const sel = `.bcat[data-cat="${esc2(key)}"]` + (limb ? `, .limb[data-limb="${esc2(limb)}"]` : "");
+    this.world.querySelectorAll(sel).forEach((n) => n.classList.add("on"));
   }
 
   clearSourceHover() {
@@ -462,9 +479,13 @@ export class TreeView {
       const cat = rec.g.getAttribute("data-cat");
       const src = rec.g.getAttribute("data-src");
       const esc = (v) => CSS.escape(String(v));
-      const q = src == null
+      // 树冠模式：叶片只标了来源 key，需要顺带高亮它所在的那条主枝
+      const limbEl = this.world.querySelector(`.src-node[data-srcnode="${esc(cat)}"]`);
+      const limb = limbEl?.getAttribute("data-limb");
+      let q = src == null
         ? `.bcat[data-cat="${esc(cat)}"]`
         : `.bcat[data-cat="${esc(cat)}"], .bsrc[data-cat="${esc(cat)}"][data-src="${esc(src)}"], .spine[data-cat="${esc(cat)}"][data-src="${esc(src)}"]`;
+      if (limb) q += `, .limb[data-limb="${esc(limb)}"]`;
       this.world.querySelectorAll(q).forEach((n) => n.classList.add("on"));
     }
     const rec2 = this.leafElm.get(id);
