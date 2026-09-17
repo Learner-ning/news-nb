@@ -1,7 +1,17 @@
-// 新闻树应用入口：树/列表/热榜三视图 + 分类 + 热度排序 + 详情 + 背景外观 + 路由
-import { loadNews, getState, getTags, buildTreeModel, getUpdatedLabel, loadCache } from "./news-store.js";
+// 新闻树应用入口：树/列表/热榜三视图 + 新闻源导航 + 分类筛选 + 详情 + 路由
+//
+// 路由（Stage 3.2）：
+//   /             首页：新闻源树 / 新闻列表（按来源分区）/ 热榜
+//   /source/:key  某个新闻源的独立新闻树（key = 来源名，不引入第二套命名）
+//   /detail/:id   新闻详情（保持不变）
+import {
+  loadNews, getState, getTags, buildSourceModel, buildSourceTreeModel,
+  buildListSections, resolveSource, sourceMeta, itemsOfSource,
+  getUpdatedLabel, loadCache
+} from "./news-store.js";
 import { TreeView } from "./tree-view.js";
 import { colorFor } from "./helpers.js";
+import { parseRoute, sourceHref } from "./routes.js";
 import * as views from "./views.js";
 
 const $ = (s) => document.querySelector(s);
@@ -45,8 +55,15 @@ const els = {
   bgPhotoState: $("#bg-photo-state"),
   bgDim: $("#bg-dim"),
   dimVal: $("#dim-val"),
-  toast: $("#toast")
+  toast: $("#toast"),
+  // 来源页导航条
+  sourceBar: $("#source-bar"),
+  sourceBack: $("#source-back"),
+  sourceBarName: $("#source-bar-name"),
+  sourceBarCount: $("#source-bar-count")
 };
+
+// ---------------- 路由（解析逻辑在 routes.js，纯函数可单测） ----------------
 
 // ---------------- 轻量提示条 / 首屏骨架 ----------------
 let toastTimer = null;
@@ -93,7 +110,8 @@ const state = {
     try { return localStorage.getItem("nt.plat") || "all"; } catch { return "all"; }
   })(),
   bg: loadBg(),
-  data: null,  // 完整树模型（未筛选）
+  source: null,    // 当前来源页的来源名（null = 首页）
+  data: null,      // 新闻源树模型（首页一级节点 = 新闻源）
   items: []
 };
 
@@ -159,10 +177,18 @@ function setStatus() {
   els.topStatus.textContent = parts.join(" · ");
 }
 
+/** 当前视图 scope 下的全部条目（来源页只看该来源） */
 function flatFiltered() {
+  if (state.source) return itemsOfSource(state.source, state.items);
   const all = state.data || [];
-  const cats = state.cat === "all" ? all : all.filter((c) => c.key === state.cat);
-  return cats.flatMap((c) => c.sources.flatMap((s) => s.items));
+  const shown = state.cat === "all" ? all : all.filter((e) => e.tags.includes(state.cat));
+  return shown.flatMap((e) => e.sources.flatMap((s) => s.items));
+}
+
+/** 首页树的一级节点（按分类筛选后的新闻源） */
+function homeTreeModel() {
+  const all = state.data || [];
+  return state.cat === "all" ? all : all.filter((e) => e.tags.includes(state.cat));
 }
 
 // ---------------- 左侧面板折叠 ----------------
@@ -177,9 +203,12 @@ function setDockState() {
 function showMainView() {
   els.detailView.classList.add("hidden");
   els.dock.classList.remove("hidden");
-  els.catBar.classList.remove("hidden");
-  document.body.classList.remove("no-cat");
+  // 分类筛选属于首页维度；来源页只展示该来源的数据，避免出现空 scope
+  const showCat = !state.source;
+  els.catBar.classList.toggle("hidden", !showCat);
+  document.body.classList.toggle("no-cat", !showCat);
   setDockState();
+  renderSourceBar();
   els.treeView.classList.toggle("hidden", state.mode !== "tree");
   els.listView.classList.toggle("hidden", state.mode !== "list");
   els.boardView.classList.toggle("hidden", state.mode !== "board");
@@ -193,18 +222,36 @@ function showDetail() {
   els.dock.classList.add("hidden");
   els.dockReopen.classList.add("hidden");
   els.catBar.classList.add("hidden");
+  els.sourceBar.classList.add("hidden");
   document.body.classList.add("no-cat");
+  document.body.classList.remove("source-mode");
+}
+
+/** 来源页顶部导航条：来源名 / 数量 / 分类 / 返回全部新闻源 */
+function renderSourceBar() {
+  const on = Boolean(state.source);
+  els.sourceBar.classList.toggle("hidden", !on);
+  document.body.classList.toggle("source-mode", on);
+  if (!on) return;
+  const meta = sourceMeta(state.source, state.items);
+  els.sourceBarName.textContent = state.source;
+  els.sourceBarName.style.setProperty("--c", meta?.color || "#2dd4bf");
+  els.sourceBarCount.textContent = meta ? `${meta.count} 条 · ${meta.tag}` : "";
 }
 
 // ---------------- 三个视图的渲染 ----------------
 function rebuildTree() {
-  const cats = state.data || [];
-  const shown = state.cat === "all" ? cats : cats.filter((c) => c.key === state.cat);
+  const model = state.source
+    ? buildSourceTreeModel(state.items, state.source)
+    : homeTreeModel();
   const warming = getState().warming && !state.items.length;
-  els.treeHint.textContent = shown.length
-    ? "拖动移动 · 滚轮/捏合缩放 · 悬停叶片看新闻 · 点击进详情"
+  els.treeHint.textContent = model.length
+    ? (state.source
+        ? "拖动移动 · 滚轮/捏合缩放 · 悬停叶片看新闻 · 点击叶片进详情"
+        : "拖动移动 · 滚轮/捏合缩放 · 点击新闻源进入它的新闻树 · 点击叶片看详情")
     : warming ? "正在更新新闻……" : "新闻源暂时不可用，请稍后刷新。";
-  tree.build(shown);
+  // 首页：一级节点就是新闻源；来源页：一级是来源，二级是分组
+  tree.build(model, { showSourceLayer: Boolean(state.source) });
 }
 
 /** 按当前模式重绘当前视图 */
@@ -216,15 +263,12 @@ function renderCurrent() {
 
 function renderList() {
   const items = [...flatFiltered()];
-  if (state.sort === "time") {
-    items.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
-  } else {
-    // 默认：热度 + 时间衰减（heatScore 已含时间衰减）
-    items.sort((a, b) => (b.heatScore || 0) - (a.heatScore || 0));
-  }
-  els.listTitle.textContent = state.cat === "all" ? "全部新闻" : `${state.cat} · 新闻列表`;
-  views.renderListMeta(els.listMeta, items);
-  views.renderList(els.newsList, items);
+  const sections = buildListSections(items, state.sort);
+  els.listTitle.textContent = state.source
+    ? `${state.source} · 新闻列表`
+    : state.cat === "all" ? "全部新闻" : `${state.cat} · 新闻列表`;
+  views.setSourceSectionsMeta(els.listMeta, sections, items.length);
+  views.renderSourceSections(els.newsList, sections);
   syncSortPills();
 }
 
@@ -281,9 +325,43 @@ async function openDetail(id, { push = true } = {}) {
 }
 
 function goMain(reload = false) {
-  history.pushState(null, "", "/");
+  state.source = null;
+  history.pushState({ view: "main" }, "", "/");
   showMainView();
+  document.title = "新闻树 · NOW News Tree";
   if (reload || !state.items.length) initData({ force: reload });
+  else renderCurrent();
+}
+
+// ---------------- 新闻源导航（Stage 3.2） ----------------
+/**
+ * 进入某个新闻源的独立新闻树。
+ * 来源页固定以「树」为默认形态；点新闻源不会直接打开某条新闻详情。
+ */
+function goSource(key, { push = true } = {}) {
+  const name = resolveSource(key, state.items);
+  if (!name) {
+    toast(`找不到新闻源「${key}」`, "warn");
+    return false;
+  }
+  state.source = name;
+  if (state.mode !== "tree") {
+    state.mode = "tree";
+    save();
+    syncDock();
+  }
+  if (push) history.pushState({ view: "source", key: name }, "", sourceHref(name));
+  showMainView();
+  renderCurrent();
+  document.title = `${name} · 独立新闻树 — NOW 新闻树`;
+  requestAnimationFrame(() => requestAnimationFrame(() => tree.fit(true)));
+  return true;
+}
+
+function syncDock() {
+  els.dock.querySelectorAll(".dock-btn").forEach((x) => {
+    x.classList.toggle("active", x.dataset.mode === state.mode);
+  });
 }
 
 // ---------------- 分类导航（来自真实数据） ----------------
@@ -311,9 +389,7 @@ function pickCat(key) {
     b.classList.toggle("active", on);
     b.setAttribute("aria-pressed", on ? "true" : "false");
   });
-  if (state.mode === "tree") rebuildTree();
-  else if (state.mode === "list") renderList();
-  else renderBoard();
+  renderCurrent();
 }
 
 // ---------------- 数据加载 ----------------
@@ -334,7 +410,7 @@ function startWarmPoll() {
     setStatus();
     if (st.items.length) {
       state.items = st.items;
-      state.data = buildTreeModel(state.items);
+      state.data = buildSourceModel(state.items);
       renderCatBar();
       renderCurrent();
     }
@@ -347,7 +423,7 @@ async function initData({ force = false } = {}) {
   await loadNews({ force });
   setStatus();
   state.items = getState().items;
-  state.data = buildTreeModel(state.items);
+  state.data = buildSourceModel(state.items);
   renderCatBar();
   renderCurrent();
   // 服务端缓存为空或正在后台更新 → 轮询等待最新数据
@@ -389,6 +465,8 @@ function wire() {
   };
   tree.onLeave = () => els.hoverCard.classList.add("hidden");
   tree.onOpen = (item) => openDetail(item.id);
+  // 点击新闻源节点 → 进入该来源的独立新闻树（不是打开某条新闻详情）
+  tree.onOpenSource = (key) => goSource(key);
   tree.attach();
   els.hoverCard.querySelector("#hc-open").addEventListener("click", () => {
     const id = els.hoverCard.dataset.id;
@@ -402,11 +480,10 @@ function wire() {
       if (m === state.mode) return;
       state.mode = m;
       save();
-      els.dock.querySelectorAll(".dock-btn").forEach((x) => x.classList.toggle("active", x.dataset.mode === m));
+      syncDock();
       showMainView();
-      if (m === "tree") rebuildTree();
-      else if (m === "list") renderList();
-      else renderBoard();
+      renderCurrent();
+      if (m === "tree") requestAnimationFrame(() => requestAnimationFrame(() => tree.fit(true)));
     });
   });
 
@@ -468,6 +545,21 @@ function wire() {
   openFrom(els.newsList, ".ncard[data-id]");
   openFrom(els.boardList, ".row-item[data-id]");
 
+  // 列表来源区域里的「进入新闻树」（与点卡片进详情语义不同）
+  els.newsList.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-enter-source]");
+    if (btn) {
+      e.stopPropagation();
+      goSource(btn.dataset.enterSource);
+    }
+  });
+
+  // 来源页「返回全部新闻源」
+  els.sourceBack.addEventListener("click", () => {
+    if (history.state?.view === "source") history.back();
+    else goMain();
+  });
+
   // 热榜平台筛选
   els.boardPlats.addEventListener("click", (e) => {
     const chip = e.target.closest(".plat-chip");
@@ -514,14 +606,34 @@ function wire() {
     }
   });
 
-  // 浏览器前进 / 后退
+  // 浏览器前进 / 后退：三条路由都要能恢复
   window.addEventListener("popstate", () => {
-    const m = location.pathname.match(/^\/detail\/([0-9a-z]+)$/i);
-    if (m) openDetail(m[1], { push: false });
-    else {
-      showMainView();
-      if (state.mode === "tree") requestAnimationFrame(() => tree.fit(true));
+    const r = parseRoute();
+    if (r.view === "detail") {
+      openDetail(r.id, { push: false });
+      return;
     }
+    if (r.view === "source") {
+      const name = resolveSource(r.key, state.items);
+      if (name) {
+        state.source = name;
+        if (state.mode !== "tree") { state.mode = "tree"; save(); }
+        showMainView();
+        syncDock();
+        renderCurrent();
+        document.title = `${name} · 独立新闻树 — NOW 新闻树`;
+        requestAnimationFrame(() => requestAnimationFrame(() => tree.fit(true)));
+        return;
+      }
+      toast(`找不到新闻源「${r.key}」`, "warn");
+    }
+    // 首页
+    state.source = null;
+    showMainView();
+    syncDock();
+    renderCurrent();
+    document.title = "新闻树 · NOW News Tree";
+    if (state.mode === "tree") requestAnimationFrame(() => requestAnimationFrame(() => tree.fit(true)));
   });
 
   window.addEventListener("resize", () => {
@@ -584,26 +696,29 @@ function wire() {
   if (state.bg.photo) markPhotoReady();
   syncSortPills();
 
-  const match = location.pathname.match(/^\/detail\/([0-9a-z]+)$/i);
+  const route = parseRoute();
 
   // ① 先用 localStorage 里的上一批数据立即渲染，消除白屏
   const cached = loadCache();
   if (cached) {
     state.items = getState().items;
-    state.data = buildTreeModel(state.items);
+    state.data = buildSourceModel(state.items);
+    if (route.view === "source") state.source = resolveSource(route.key, state.items);
     renderCatBar();
     setStatus();
   }
 
-  if (match) {
+  // ② 详情路由：沿用现有详情链路，不改动
+  if (route.view === "detail") {
     showDetail();
     await initData();
-    await openDetail(match[1], { push: false });
+    await openDetail(route.id, { push: false });
     return;
   }
 
   showMainView();
-  // ② 没有本地缓存 → 显示骨架；有缓存 → 直接显示内容
+  syncDock();
+  // 没有本地缓存 → 显示骨架；有缓存 → 直接显示内容
   setSkeleton(!cached);
   renderCurrent();
   if (cached && state.mode === "tree") requestAnimationFrame(() => tree.fit());
@@ -611,11 +726,36 @@ function wire() {
   // ③ 后台请求最新数据
   await initData();
   setSkeleton(false);
-  if (state.mode === "tree") requestAnimationFrame(() => requestAnimationFrame(() => tree.fit()));
+
+  // ④ 来源路由：数据就绪后解析来源名（直接访问 / 刷新都要能恢复）
+  if (route.view === "source") {
+    const name = resolveSource(route.key, state.items);
+    if (name) {
+      state.source = name;
+      if (state.mode !== "tree") {
+        state.mode = "tree";
+        save();
+      }
+      showMainView();
+      syncDock();
+      renderCurrent();
+      document.title = `${name} · 独立新闻树 — NOW 新闻树`;
+    } else {
+      toast(`找不到新闻源「${route.key}」`, "warn");
+    }
+  }
+
+  if (state.mode === "tree") requestAnimationFrame(() => requestAnimationFrame(() => tree.fit(true)));
 })();
 
 // 便于调试 / 自检
 window.__newsTree = {
-  state: () => ({ mode: state.mode, cat: state.cat, sort: state.sort, items: state.items.length, cats: state.data?.length }),
+  state: () => ({
+    mode: state.mode, cat: state.cat, sort: state.sort,
+    source: state.source, items: state.items.length, sources: state.data?.length
+  }),
+  route: () => parseRoute(),
+  goSource,
+  goMain,
   tree
 };

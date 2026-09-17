@@ -68,9 +68,19 @@
   </div>
 
   <main id="stage">
+    <!-- ======== 来源页导航条（仅在 /source/:key 时显示） ======== -->
+    <div id="source-bar" class="source-bar hidden">
+      <button id="source-back" class="sb-back" type="button">← 返回全部新闻源</button>
+      <div class="sb-id">
+        <span class="sb-name" id="source-bar-name"></span>
+        <span class="sb-count" id="source-bar-count"></span>
+      </div>
+      <span class="sb-hint" id="source-bar-hint">该来源的独立新闻树</span>
+    </div>
+
     <!-- ======== 树模式 ======== -->
     <section id="view-tree" class="view tree-view" aria-label="新闻树视图">
-      <svg id="tree-svg" role="img" aria-label="交互式新闻树">
+      <svg id="tree-svg" role="img" tabindex="0" aria-label="交互式新闻树（方向键平移，+/- 缩放，0 适应）">
         <defs>
           <radialGradient id="leaf-glow" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stop-color="#fff" stop-opacity="0.9"/>

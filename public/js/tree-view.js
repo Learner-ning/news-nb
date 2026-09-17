@@ -7,6 +7,7 @@
 // 几何全部由 tree-layout.js 的纯函数给出（无随机、同数据同输出）。
 // 平移/缩放只改 #world 的 transform；只有数据或分类变化才重新布局。
 import { layoutTree, computeFit, truncateByWidth, lodLevel, LAYOUT_DEFAULTS } from "./tree-layout.js";
+import { textWidth } from "./helpers.js";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -36,9 +37,13 @@ export class TreeView {
     this.world = svg.querySelector("#world");
     this.view = { tx: 0, ty: 0, s: 1 };
     this.leafElm = new Map();
+    this.srcElm = new Map();     // 一级新闻源节点（source-mode）
+    this.showSourceLayer = true;
+    this._srcHover = null;
     this.hover = null;
     this.drag = null;
     this._downLeaf = null;
+    this._downSource = null;
     this._suppressClick = false;
     this.pointers = new Map();
     this._pinch = 0;
@@ -47,6 +52,7 @@ export class TreeView {
     this.onHover = null;
     this.onLeave = null;
     this.onOpen = null;
+    this.onOpenSource = null;    // 点击新闻源节点 → 进入独立新闻树
     this._attached = false;
     this._lod = -1;
     this.geom = null;
@@ -54,16 +60,27 @@ export class TreeView {
   }
 
   // ================= 渲染 =================
-  build(cats) {
+  /**
+   * @param {Array} entries 树模型（一级 = 主枝，二级 = 分枝）
+   * @param {Object} opts
+   *   showSourceLayer: true  → 两级渲染（分类 → 来源 → 叶片），用于来源页
+   *                     false → 一级节点本身就是新闻源（首页新闻源树），
+   *                             渲染时省略中间层，主枝直接连到叶片簇
+   */
+  build(entries, opts = {}) {
+    const showSourceLayer = opts.showSourceLayer !== false;
+    this.showSourceLayer = showSourceLayer;
     this.world.innerHTML = "";
     this.leafElm.clear();
-    this.svg.classList.toggle("no-tree", !cats || !cats.length);
-    if (!cats || !cats.length) {
+    this.srcElm.clear();
+    this.svg.classList.toggle("no-tree", !entries || !entries.length);
+    this.svg.classList.toggle("source-mode", !showSourceLayer);
+    if (!entries || !entries.length) {
       this.geom = null;
       return;
     }
 
-    const g = layoutTree(cats, LAYOUT_DEFAULTS);
+    const g = layoutTree(entries, LAYOUT_DEFAULTS);
     this.geom = g;
     this._bbox = g.bbox;
 
@@ -96,7 +113,7 @@ export class TreeView {
     }
     passTrunk.appendChild(bark);
 
-    // —— 主枝（树干顶端 → 分类节点）——
+    // —— 主枝（树干顶端 → 一级节点）——
     const apex = g.apex;
     g.categories.forEach((c, ci) => {
       const grp = svgEl("g", { cls: "bcat", "data-cat": c.key });
@@ -108,25 +125,37 @@ export class TreeView {
       passMain.appendChild(grp);
     });
 
-    // —— 分枝（分类节点 → 来源节点）+ 枝脊 ——
-    for (let ci = 0; ci < g.categories.length; ci++) {
-      const c = g.categories[ci];
-      for (let si = 0; si < c.sources.length; si++) {
-        const s = c.sources[si];
-        const grp = svgEl("g", { cls: "bsrc", "data-cat": c.key, "data-src": si });
-        grp.appendChild(svgEl("path", {
-          d: branchPath(c.node, s.node), fill: "none",
-          cls: "branch-sub grow-path", pathLength: 1,
-          style: `--c:${c.color};--d:${260 + ci * 80 + si * 50}ms`
-        }));
-        passSub.appendChild(grp);
-        // 枝脊：从来源节点竖直连到第一行叶片，让叶片看起来挂在分枝上
-        passSub.appendChild(svgEl("path", {
-          d: `M ${s.spine.x1} ${s.spine.y1} L ${s.spine.x2} ${s.spine.y2}`, fill: "none",
-          cls: "spine", "data-cat": c.key, "data-src": si,
-          style: `--c:${c.color};--d:${300 + ci * 80 + si * 50}ms`
-        }));
+    if (showSourceLayer) {
+      // —— 两级：分类节点 → 来源节点 → 叶片簇 ——
+      for (let ci = 0; ci < g.categories.length; ci++) {
+        const c = g.categories[ci];
+        for (let si = 0; si < c.sources.length; si++) {
+          const s = c.sources[si];
+          const grp = svgEl("g", { cls: "bsrc", "data-cat": c.key, "data-src": si });
+          grp.appendChild(svgEl("path", {
+            d: branchPath(c.node, s.node), fill: "none",
+            cls: "branch-sub grow-path", pathLength: 1,
+            style: `--c:${c.color};--d:${260 + ci * 80 + si * 50}ms`
+          }));
+          passSub.appendChild(grp);
+          passSub.appendChild(svgEl("path", {
+            d: `M ${s.spine.x1} ${s.spine.y1} L ${s.spine.x2} ${s.spine.y2}`, fill: "none",
+            cls: "spine", "data-cat": c.key, "data-src": si,
+            style: `--c:${c.color};--d:${300 + ci * 80 + si * 50}ms`
+          }));
+        }
       }
+    } else {
+      // —— 一级即新闻源：主枝末端直接连到叶片簇（省掉中间层）——
+      g.categories.forEach((c, ci) => {
+        for (const s of c.sources) {
+          passSub.appendChild(svgEl("path", {
+            d: `M ${c.node.x} ${c.node.y} L ${s.spine.x2} ${s.spine.y2}`, fill: "none",
+            cls: "spine spine-source", "data-cat": c.key,
+            style: `--c:${c.color};--d:${240 + ci * 60}ms`
+          }));
+        }
+      });
     }
 
     // —— 新闻叶片 ——
@@ -140,7 +169,7 @@ export class TreeView {
       });
       grp.appendChild(svgEl("rect", {
         x: leaf.x - leaf.w / 2, y: leaf.y - leaf.h / 2,
-        width: leaf.w, height: leaf.h, rx: 9, cls: "leaf-pill"
+        width: leaf.w, height: leaf.h, rx: 6, cls: "leaf-pill"
       }));
       grp.appendChild(svgEl("text", {
         x: leaf.x, y: leaf.y + 4.5, "text-anchor": "middle",
@@ -150,31 +179,59 @@ export class TreeView {
       this.leafElm.set(leaf.id, { g: grp, item: leaf.item });
     }
 
-    // —— 标签（分类 / 来源）——
-    g.categories.forEach((c, ci) => {
-      const name = `${c.name} ${c.count}`;
-      const wl = Math.min(150, name.length * 14 + 26);
-      const lbl = svgEl("g", { cls: "cat-label", style: `--d:${170 + ci * 80}ms` });
-      lbl.appendChild(svgEl("rect", {
-        x: c.node.x - wl / 2, y: c.node.y - 13, width: wl, height: 26, rx: 13,
-        cls: "cat-label-bg", style: `--c:${c.color}`
-      }));
-      lbl.appendChild(svgEl("text", {
-        x: c.node.x, y: c.node.y + 4.5, "text-anchor": "middle", cls: "cat-label-text", text: name
-      }));
-      passLabels.appendChild(lbl);
+    // —— 标签 ——
+    if (showSourceLayer) {
+      // 分类标签（小） + 来源节点（点 + 名称）
+      g.categories.forEach((c, ci) => {
+        const name = `${c.name} ${c.count}`;
+        const wl = Math.min(150, name.length * 14 + 26);
+        const lbl = svgEl("g", { cls: "cat-label", style: `--d:${170 + ci * 80}ms` });
+        lbl.appendChild(svgEl("rect", {
+          x: c.node.x - wl / 2, y: c.node.y - 13, width: wl, height: 26, rx: 13,
+          cls: "cat-label-bg", style: `--c:${c.color}`
+        }));
+        lbl.appendChild(svgEl("text", {
+          x: c.node.x, y: c.node.y + 4.5, "text-anchor": "middle", cls: "cat-label-text", text: name
+        }));
+        passLabels.appendChild(lbl);
 
-      for (const s of c.sources) {
-        passLabels.appendChild(svgEl("circle", {
-          cx: s.node.x, cy: s.node.y, r: 4.2, cls: "src-dot",
-          style: `--c:${c.color};--d:${300 + ci * 80 + s.si * 50}ms`
+        for (const s of c.sources) {
+          passLabels.appendChild(svgEl("circle", {
+            cx: s.node.x, cy: s.node.y, r: 4.2, cls: "src-dot",
+            style: `--c:${c.color};--d:${300 + ci * 80 + s.si * 50}ms`
+          }));
+          if (s.name) {
+            passLabels.appendChild(svgEl("text", {
+              x: s.node.x + 9, y: s.node.y + 4.5, cls: "src-name",
+              text: `${s.name} · ${s.count}`, style: `--d:${310 + ci * 80 + s.si * 50}ms`
+            }));
+          }
+        }
+      });
+    } else {
+      // 新闻源节点：更大、更高视觉权重、可点击、有 focus 状态
+      g.categories.forEach((c, ci) => {
+        const name = String(c.name || "");
+        const wl = Math.min(240, Math.max(104, textWidth(name) + 40));
+        const grp = svgEl("g", {
+          cls: "src-node", "data-srcnode": c.key,
+          role: "button", tabindex: "0",
+          "aria-label": `${name}，${c.count} 条新闻，进入独立新闻树`,
+          style: `--c:${c.color};--d:${170 + ci * 70}ms`
+        });
+        grp.appendChild(svgEl("rect", {
+          x: c.node.x - wl / 2, y: c.node.y - 17, width: wl, height: 34, rx: 17, cls: "sn-bg"
         }));
-        passLabels.appendChild(svgEl("text", {
-          x: s.node.x + 9, y: s.node.y + 4.5, cls: "src-name",
-          text: `${s.name} · ${s.count}`, style: `--d:${310 + ci * 80 + s.si * 50}ms`
+        grp.appendChild(svgEl("text", {
+          x: c.node.x, y: c.node.y + 5, "text-anchor": "middle", cls: "sn-name", text: name
         }));
-      }
-    });
+        grp.appendChild(svgEl("text", {
+          x: c.node.x, y: c.node.y + 32, "text-anchor": "middle", cls: "sn-count", text: `${c.count} 条`
+        }));
+        passLabels.appendChild(grp);
+        this.srcElm.set(c.key, { g: grp, count: c.count });
+      });
+    }
 
     for (const p of [passTrunk, passMain, passSub, passLeaves, passLabels]) this.world.appendChild(p);
 
@@ -247,8 +304,9 @@ export class TreeView {
     }, { passive: false });
 
     svg.addEventListener("pointerdown", (e) => {
-      // 记录按下位置对应的叶片（pointer capture 会让 click 目标变成 svg 本身）
+      // 记录按下位置对应的叶片 / 新闻源节点（pointer capture 会让 click 目标变成 svg 本身）
       this._downLeaf = e.target.closest?.("[data-leaf]")?.getAttribute("data-leaf") || null;
+      this._downSource = e.target.closest?.("[data-srcnode]")?.getAttribute("data-srcnode") || null;
       this._suppressClick = false;
       try { svg.setPointerCapture(e.pointerId); } catch {}
       this.pointers.set(e.pointerId, local(e));
@@ -298,33 +356,103 @@ export class TreeView {
     svg.addEventListener("pointerup", end);
     svg.addEventListener("pointercancel", end);
 
-    // 悬停（委托）
+    // 悬停（委托）：叶片显示信息卡；新闻源节点只做高亮
     svg.addEventListener("pointerover", (e) => {
       const elm = e.target.closest?.("[data-leaf]");
-      if (elm) this.setHover(elm.getAttribute("data-leaf"), e);
+      if (elm) { this.setHover(elm.getAttribute("data-leaf"), e); return; }
+      const sn = e.target.closest?.("[data-srcnode]");
+      if (sn) this.setSourceHover(sn.getAttribute("data-srcnode"));
     });
     svg.addEventListener("pointerout", (e) => {
       const from = e.target.closest?.("[data-leaf]");
       const to = e.relatedTarget?.closest?.("[data-leaf]");
       if (from && !to) this.clearHover();
+      const fs = e.target.closest?.("[data-srcnode]");
+      const ts = e.relatedTarget?.closest?.("[data-srcnode]");
+      if (fs && !ts) this.clearSourceHover();
     });
 
-    // 点击叶片 → 进入详情（沿用现有跳转逻辑；拖拽后不触发）
+    // 点击叶片 → 进入详情；点击新闻源节点 → 进入独立新闻树（拖拽后不触发）
     svg.addEventListener("click", () => {
       if (this._suppressClick) {
         this._suppressClick = false;
+        this._downLeaf = null;
+        this._downSource = null;
         return;
       }
       const id = this._downLeaf;
+      const src = this._downSource;
       this._downLeaf = null;
+      this._downSource = null;
       if (id) {
         const rec = this.leafElm.get(id);
         if (rec && this.onOpen) this.onOpen(rec.item);
+      } else if (src && this.onOpenSource) {
+        this.onOpenSource(src);
+      }
+    });
+
+    // 键盘：焦点在新闻源节点上时 Enter/Space 进入；焦点在画布上时方向键平移、+/- 缩放、0 适应
+    svg.addEventListener("keydown", (e) => {
+      const sn = e.target.closest?.("[data-srcnode]");
+      if (sn && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        if (this.onOpenSource) this.onOpenSource(sn.getAttribute("data-srcnode"));
+        return;
+      }
+      const leaf = e.target.closest?.("[data-leaf]");
+      if (leaf && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        const rec = this.leafElm.get(leaf.getAttribute("data-leaf"));
+        if (rec && this.onOpen) this.onOpen(rec.item);
+        return;
+      }
+      if (e.target !== svg) return;
+      const step = e.shiftKey ? 160 : 60;
+      const keys = {
+        ArrowLeft: [-step, 0], ArrowRight: [step, 0],
+        ArrowUp: [0, -step], ArrowDown: [0, step]
+      };
+      if (keys[e.key]) {
+        e.preventDefault();
+        const [dx, dy] = keys[e.key];
+        this.setTransform(this.view.tx + dx, this.view.ty + dy, this.view.s);
+      } else if (e.key === "+" || e.key === "=") {
+        e.preventDefault();
+        const r = svg.getBoundingClientRect();
+        this.zoomBy(1.32, r.width / 2, r.height / 2, true);
+      } else if (e.key === "-" || e.key === "_") {
+        e.preventDefault();
+        const r = svg.getBoundingClientRect();
+        this.zoomBy(1 / 1.32, r.width / 2, r.height / 2, true);
+      } else if (e.key === "0") {
+        e.preventDefault();
+        this.fit(true);
       }
     });
   }
 
+  /** 新闻源节点 hover 高亮 */
+  setSourceHover(key) {
+    if (this._srcHover === key) return;
+    this.clearSourceHover();
+    this._srcHover = key;
+    const rec = this.srcElm.get(key);
+    if (rec) rec.g.classList.add("active");
+    const esc2 = (v) => CSS.escape(String(v));
+    this.world.querySelectorAll(`.bcat[data-cat="${esc2(key)}"]`).forEach((n) => n.classList.add("on"));
+  }
+
+  clearSourceHover() {
+    if (!this._srcHover) return;
+    const rec = this.srcElm.get(this._srcHover);
+    if (rec) rec.g.classList.remove("active");
+    this._srcHover = null;
+    this.world.querySelectorAll(".bcat.on").forEach((n) => n.classList.remove("on"));
+  }
+
   setHover(id, e) {
+    this.clearSourceHover();
     if (this.hover !== id) {
       this.clearHover();
       this.hover = id;

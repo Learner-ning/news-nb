@@ -2,25 +2,17 @@
 // 所有视图共用同一份真实数据与点击→详情跳转逻辑
 import { esc, timeLabel, fmtFull, colorFor } from "./helpers.js";
 
-function heatText(x) {
-  const h = Math.round((x.heatScore || 0) * 100);
-  return x.dupCount > 1 ? `热度 ${h}% · 多源×${x.dupCount}` : `热度 ${h}%`;
-}
-
-// ---------- 新闻卡片列表（统一卡片：仅标题 + 基础信息，不展示正文） ----------
+// ---------- 新闻卡片（Stage 3.2：降低单卡视觉重量，分组交给来源区域） ----------
 function card(x) {
+  const heat = Math.round((x.heatScore || 0) * 100);
   return `
-  <article class="ncard" data-id="${esc(x.id)}" role="button" tabindex="0">
-    <div class="nc-line">
+  <article class="ncard" data-id="${esc(x.id)}" role="button" tabindex="0" aria-label="${esc(x.title)}">
+    <h4 class="nc-title">${esc(x.title)}</h4>
+    <div class="nc-meta">
       <span class="nc-cat" style="--c:${colorFor(x.tag)}">${esc(x.tag)}</span>
       <span class="nc-src">${esc(x.source)}</span>
       <span class="nc-time">${esc(timeLabel(x))}</span>
-      ${x.hotRank ? `<span class="nc-hotrank">热榜#${x.hotRank}</span>` : ""}
-    </div>
-    <h3 class="nc-title">${esc(x.title)}</h3>
-    <div class="nc-foot">
-      <span class="nc-heat">🔥 ${heatText(x)}</span>
-      <span class="nc-go">查看详情 →</span>
+      <span class="nc-heat" title="热度 ${heat}%">${heat}</span>
     </div>
   </article>`;
 }
@@ -33,8 +25,38 @@ export function renderList(container, items) {
   container.innerHTML = items.map(card).join("");
 }
 
-export function renderListMeta(elm, items) {
-  elm.textContent = `${items.length} 条`;
+// ---------- 新闻列表来源分区（Stage 3.2） ----------
+// 结构：来源区域（来源名 / 数量 / 分类 / 进入新闻树）→ 区域内的新闻卡片网格
+// 目标是「先识别新闻源，再识别该来源的新闻」，所以区域承担分组，
+// 卡片只做轻量呈现（无重边框、无阴影堆叠）。
+function sourceSection(s, i) {
+  return `
+  <section class="src-section" data-source="${esc(s.key)}" style="--c:${s.color}" aria-labelledby="ss-name-${i}">
+    <header class="ss-head">
+      <div class="ss-id">
+        <h3 class="ss-name" id="ss-name-${i}">${esc(s.name)}</h3>
+        <span class="ss-count">${s.count} 条</span>
+      </div>
+      <div class="ss-side">
+        <span class="ss-tag" style="--c:${s.color}">${esc(s.tag)}</span>
+        <button class="ss-enter" type="button" data-enter-source="${esc(s.key)}"
+          aria-label="进入${esc(s.name)}的独立新闻树">进入新闻树 →</button>
+      </div>
+    </header>
+    <div class="ss-grid">${s.items.map(card).join("")}</div>
+  </section>`;
+}
+
+export function renderSourceSections(container, sections) {
+  if (!sections.length) {
+    container.innerHTML = '<div class="list-empty">当前筛选下没有新闻，请切换分类或稍后刷新。</div>';
+    return;
+  }
+  container.innerHTML = sections.map(sourceSection).join("");
+}
+
+export function setSourceSectionsMeta(elm, sections, total) {
+  elm.textContent = `${sections.length} 个来源 · ${total} 条`;
 }
 
 // ---------- 热榜：按平台分组 + 排名视觉层级 ----------
