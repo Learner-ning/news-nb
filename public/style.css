@@ -100,9 +100,18 @@ body[data-theme="dawn"] #bg .stars { opacity: .22; }
 body[data-photo="1"] #bg .aurora { opacity: .14; }
 body[data-photo="1"] #bg .stars { opacity: .25; }
 
-/* 压暗层（--dim 由 JS 控制，保证树与文字在图片上依然清晰） */
+/* 压暗层（--dim 由 JS 控制）
+   ------------------------------------------------------------------
+   Stage 3.5 修正：这一层原本无条件生效，把预设背景也一起压暗 ——
+   实测 DAY 的纸面 #f3f0e9 被压成 rgb(150,156,163) 的中灰，
+   于是「浅色环境」看起来发灰发脏，白卡片也失去对比。
+   它存在的意义只是「让文字在用户自定义图片上仍然清晰」，
+   所以现在只在真的设了背景图片时才生效。 */
 #bg::before {
   content: ""; position: absolute; inset: 0; z-index: 3;
+  background: transparent;
+}
+body[data-photo="1"] #bg::before {
   background: rgba(3, 8, 18, var(--dim, 0.35));
 }
 #bg .bg-photo { z-index: 0; }
@@ -174,7 +183,7 @@ body[data-photo="1"] #bg .stars { opacity: .25; }
   font: 600 12.5px inherit; cursor: pointer; transition: .15s;
 }
 .bs-theme:hover { border-color: var(--accent); }
-.bs-theme.active { background: var(--accent); color: #04201c; border-color: var(--accent); }
+.bs-theme.active { background: var(--accent); color: var(--text-on-accent); border-color: var(--accent); }
 .bs-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .btn-ghost {
   background: rgba(150, 180, 255, .1); border: 1px solid var(--line);
@@ -358,7 +367,7 @@ body.dock-off .left-dock { display: none; }
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 .hc-actions { margin-top: 11px; text-align: right; }
-.hc-open { background: var(--accent); color: #04201c; border: 0; cursor: pointer;
+.hc-open { background: var(--accent); color: var(--text-on-accent); border: 0; cursor: pointer;
   border-radius: 99px; padding: 7px 15px; font: 700 12.5px inherit; transition: .16s; }
 .hc-open:hover { filter: brightness(1.12); }
 
@@ -382,26 +391,26 @@ body.dock-off .left-dock { display: none; }
   margin: 0 0 10px; display: flex; align-items: center; gap: 8px;
 }
 .lg-count {
-  font-size: 10px; color: var(--muted); font-weight: 600;
-  background: rgba(150, 180, 255, .12); border-radius: 99px; padding: 2px 8px;
+  font-size: 10px; color: var(--text-secondary); font-weight: 600;
+  background: var(--bg-chip); border-radius: 99px; padding: 2px 8px;
 }
 .lg-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 10px; }
 .card {
-  background: color-mix(in srgb, #0f1a33 90%, transparent);
+  background: var(--bg-card);
   border: 1px solid var(--line); border-radius: 13px;
   padding: 17px 18px; display: flex; flex-direction: column; gap: 10px;
   cursor: pointer; transition: .18s; min-height: 128px; position: relative; overflow: hidden;
 }
-.card:hover { border-color: color-mix(in srgb, var(--accent) 65%, transparent); transform: translateY(-2px); box-shadow: 0 10px 26px rgba(0, 0, 0, .35); }
+.card:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); transform: translateY(-2px); box-shadow: var(--shadow-lift); }
 .card .tag { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; color: var(--accent); }
 .card .title { font-size: 16.5px; font-weight: 700; line-height: 1.5; }
 .card .summary { font-size: 12.5px; color: var(--muted); line-height: 1.7; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.card .foot { display: flex; justify-content: space-between; font-size: 11px; color: #8ea0c2; margin-top: auto; }
+.card .foot { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-top: auto; }
 .card .foot .go { color: var(--accent); font-weight: 600; }
 .card.empty { grid-column: 1 / -1; text-align: center; color: var(--muted); cursor: default; align-items: center; justify-content: center; }
 .skeleton {
   min-height: 128px; border-radius: 13px;
-  background: linear-gradient(90deg, rgba(150, 180, 255, .07), rgba(150, 180, 255, .16), rgba(150, 180, 255, .07));
+  background: linear-gradient(90deg, var(--bg-chip), var(--bg-chip-hover), var(--bg-chip));
   background-size: 220% 100%; animation: s 1.3s infinite;
 }
 @keyframes s { to { background-position: -220% 0; } }
@@ -457,10 +466,10 @@ body.booting .list-empty { display: none; }
 .detail-tag { font-size: 11px; font-weight: 800; letter-spacing: 2px; color: var(--accent); margin-bottom: 16px; }
 .detail-title { font-size: clamp(24px, 4.4vw, 38px); font-weight: 800; line-height: 1.3; letter-spacing: -.6px; margin: 0 0 18px; }
 .detail-meta { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 26px; }
-.detail-body { font-size: 15px; line-height: 1.95; color: #d2ddf2; white-space: pre-wrap; margin-bottom: 36px; user-select: text; }
+.detail-body { font-size: 15px; line-height: 1.95; color: var(--text-primary); white-space: pre-wrap; margin-bottom: 36px; user-select: text; }
 .detail-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .btn-primary {
-  display: inline-flex; align-items: center; background: var(--accent); color: #04201c;
+  display: inline-flex; align-items: center; background: var(--accent); color: var(--text-on-accent);
   text-decoration: none; padding: 13px 22px; border-radius: 99px; font-weight: 700; font-size: 14px; transition: .16s;
 }
 .btn-primary:hover { filter: brightness(1.12); }
@@ -490,7 +499,7 @@ body.booting .list-empty { display: none; }
   background: rgba(150, 180, 255, .07); border: 1px solid var(--line); color: var(--muted);
   border-radius: 99px; padding: 8px 18px; font: 600 13.5px inherit; cursor: pointer; transition: .16s;
 }
-.cat-btn:hover { color: var(--ink); border-color: rgba(150, 180, 255, .45); }
+.cat-btn:hover { color: var(--text-primary); border-color: var(--border-strong); }
 .cat-btn.active {
   color: #061218; border-color: var(--c, var(--accent)); background: var(--c, var(--accent));
   box-shadow: 0 0 16px color-mix(in srgb, var(--c, var(--accent)) 50%, transparent);
@@ -527,8 +536,8 @@ body.no-cat { --cat-h: 0px; }
 .news-list { display: flex; flex-direction: column; gap: 6px; }
 .row-item {
   display: block;
-  background: color-mix(in srgb, #101c38 92%, transparent);
-  border: 1px solid var(--line);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 13px 18px;
   cursor: pointer;
@@ -539,7 +548,7 @@ body.no-cat { --cat-h: 0px; }
 }
 .row-item:hover, .row-item:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 70%, transparent);
-  background: color-mix(in srgb, var(--accent) 10%, #101c38);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
   outline: none;
   transform: translateX(3px);
 }
@@ -561,43 +570,43 @@ body.no-cat { --cat-h: 0px; }
 .lv-head { flex-wrap: wrap; }
 .lv-sorts { display: flex; gap: 6px; }
 .sort-pill {
-  background: rgba(150, 180, 255, .07); border: 1px solid var(--line);
-  color: var(--muted); border-radius: 99px; padding: 6px 15px;
+  background: var(--bg-chip); border: 1px solid var(--border);
+  color: var(--text-secondary); border-radius: 99px; padding: 6px 15px;
   font: 600 12.5px inherit; cursor: pointer; transition: .15s;
 }
-.sort-pill:hover { color: var(--ink); border-color: rgba(150, 180, 255, .45); }
-.sort-pill.active { color: #04201c; background: var(--accent); border-color: var(--accent); }
+.sort-pill:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.sort-pill.active { color: var(--text-on-accent); background: var(--accent); border-color: var(--accent); }
 
 /* ===== 全站热榜 ===== */
 .board-view { overflow-y: auto; padding: 22px clamp(12px, 3vw, 40px) 60px; scrollbar-width: thin; }
 .board-list { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 6px; }
 .board-row { display: flex; align-items: center; gap: 13px; }
 .b-rank { flex: none; width: 30px; text-align: center; font-weight: 800; color: var(--muted); font-size: 14px; }
-.b-rank.top { color: #ffd166; font-size: 18px; text-shadow: 0 0 12px rgba(255, 209, 102, .55); }
+.b-rank.top { color: var(--rank-1); font-size: 18px; }
 .b-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .b-main .ri-title { font-size: 15.5px; }
 .b-meta { font-size: 11px; color: var(--muted); }
 .b-hot {
-  color: #ff8fb2; border: 1px solid rgba(255, 143, 178, .5);
+  color: var(--hot); border: 1px solid color-mix(in srgb, var(--hot) 50%, transparent);
   font-size: 10px; padding: 0 6px; border-radius: 99px; margin-left: 6px;
 }
 .b-heat { flex: none; width: 118px; display: flex; align-items: center; gap: 7px; }
 .b-bar, .hc-bar {
   display: inline-block; height: 6px; border-radius: 99px;
-  background: linear-gradient(90deg, var(--accent) var(--w, 50%), rgba(255, 255, 255, .12) var(--w, 50%));
+  background: linear-gradient(90deg, var(--accent) var(--w, 50%), var(--track) var(--w, 50%));
 }
 .b-heat i { flex: 1; }
 .b-heat b { width: 32px; text-align: right; color: var(--accent); font-weight: 700; font-size: 13px; }
 .b-dup {
-  flex: none; font-size: 10px; color: #ffd166;
-  border: 1px solid rgba(255, 209, 102, .45); padding: 2px 7px; border-radius: 99px; white-space: nowrap;
+  flex: none; font-size: 10px; color: var(--rank-1);
+  border: 1px solid color-mix(in srgb, var(--rank-1) 45%, transparent); padding: 2px 7px; border-radius: 99px; white-space: nowrap;
 }
 
 /* ===== 悬停卡热度行 / 详情热度 ===== */
 .hc-heat { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 6px 0 4px; }
 .hc-heatval { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--accent); }
 .hc-bar { width: 64px; height: 5px; }
-.hc-dup { font-size: 10px; color: #ffd166; border: 1px solid rgba(255, 209, 102, .4); padding: 1px 7px; border-radius: 99px; }
+.hc-dup { font-size: 10px; color: var(--rank-1); border: 1px solid color-mix(in srgb, var(--rank-1) 40%, transparent); padding: 1px 7px; border-radius: 99px; }
 .detail-heat {
   display: inline-flex; gap: 6px; align-items: center;
   font-size: 12px; color: var(--muted);
@@ -616,8 +625,8 @@ body.no-cat { --cat-h: 0px; }
 }
 .ncard {
   display: flex; flex-direction: column; gap: 10px;
-  background: color-mix(in srgb, #101c38 92%, transparent);
-  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 14px;
   padding: 15px 17px; min-height: 118px;
   cursor: pointer; transition: .17s; position: relative; overflow: hidden;
 }
@@ -628,7 +637,7 @@ body.no-cat { --cat-h: 0px; }
 .ncard:hover, .ncard:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 60%, transparent);
   transform: translateY(-2px);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, .35);
+  box-shadow: var(--shadow-lift);
   outline: none;
 }
 .ncard:hover::before { opacity: 1; }
@@ -640,13 +649,13 @@ body.no-cat { --cat-h: 0px; }
 }
 .nc-src { color: var(--ink); font-weight: 600; }
 .nc-time { color: var(--muted); }
-.nc-hotrank { color: #ffd166; border: 1px solid rgba(255, 209, 102, .4); border-radius: 99px; padding: 0 7px; font-size: 10px; }
+.nc-hotrank { color: var(--rank-1); border: 1px solid color-mix(in srgb, var(--rank-1) 40%, transparent); border-radius: 99px; padding: 0 7px; font-size: 10px; }
 .nc-title { margin: 0; font-size: 16.5px; font-weight: 700; line-height: 1.5; }
 .nc-foot {
   margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 8px;
   font-size: 11px; color: var(--muted);
 }
-.nc-heat { color: #ffb86b; }
+.nc-heat { color: var(--heat); }
 .nc-go { color: var(--accent); font-weight: 700; white-space: nowrap; }
 .ncard:active { transform: translateY(0); }
 
@@ -658,11 +667,11 @@ body.no-cat { --cat-h: 0px; }
 .board-plats::-webkit-scrollbar { display: none; }
 .plat-chip {
   flex: none;
-  background: rgba(150, 180, 255, .07); border: 1px solid var(--line); color: var(--muted);
+  background: var(--bg-chip); border: 1px solid var(--border); color: var(--text-secondary);
   border-radius: 99px; padding: 7px 15px; font: 600 12.5px inherit; cursor: pointer; transition: .15s;
 }
-.plat-chip:hover { color: var(--ink); border-color: rgba(150, 180, 255, .5); }
-.plat-chip.active { color: #04201c; background: var(--accent); border-color: var(--accent); }
+.plat-chip:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.plat-chip.active { color: var(--text-on-accent); background: var(--accent); border-color: var(--accent); }
 
 /* 热榜分组 */
 .board-list { display: flex; flex-direction: column; gap: 18px; }
@@ -676,34 +685,46 @@ body.no-cat { --cat-h: 0px; }
 /* 排名视觉层级：1/2/3 名突出 */
 .b-rank { font-variant-numeric: tabular-nums; }
 .board-row { position: relative; }
-.b-rank.top1 { color: #ffd166; font-size: 24px; font-weight: 900; text-shadow: 0 0 16px rgba(255, 209, 102, .6); }
-.b-rank.top2 { color: #dfe7f5; font-size: 21px; font-weight: 800; }
-.b-rank.top3 { color: #eea36f; font-size: 19px; font-weight: 800; }
-.board-row.top1 { background: linear-gradient(90deg, rgba(255, 209, 102, .10), transparent 55%); }
-.board-row.top2 { background: linear-gradient(90deg, rgba(223, 231, 245, .08), transparent 55%); }
-.board-row.top3 { background: linear-gradient(90deg, rgba(238, 163, 111, .08), transparent 55%); }
+.b-rank.top1 { color: var(--rank-1); font-size: 24px; font-weight: 900; }
+.b-rank.top2 { color: var(--rank-2); font-size: 21px; font-weight: 800; }
+.b-rank.top3 { color: var(--rank-3); font-size: 19px; font-weight: 800; }
+.board-row.top1 { background: linear-gradient(90deg, color-mix(in srgb, var(--rank-1) 14%, transparent), transparent 55%); }
+.board-row.top2 { background: linear-gradient(90deg, color-mix(in srgb, var(--rank-2) 12%, transparent), transparent 55%); }
+.board-row.top3 { background: linear-gradient(90deg, color-mix(in srgb, var(--rank-3) 12%, transparent), transparent 55%); }
 
 /* ==================================================================
    Stage 3.2：新闻源导航 / 来源区域 / 来源节点
-   变量组织：原始值(既有 :root) → 语义变量(下方) → 组件规则
-   新组件一律引用语义变量，不再散落裸 rgba()
+   变量组织：语义变量 → 组件规则；组件一律引用语义变量。
+   ------------------------------------------------------------------
+   Stage 3.5 修正：这个 :root 块原来把 --src-surface / --card-surface 等
+   链到深色值（--glass / #101c38）。CSS 自定义属性在**声明它的元素**上做
+   替换，:root 上算出来的就是深色值，再继承下去 —— 于是 DAY 环境下列表卡片
+   仍然是深蓝底。现在把这些变量挪进 data-env 块，随环境一起变。
+   （尺寸类变量与颜色无关，继续留在 :root。）
    ================================================================== */
 :root {
-  /* 语义层：来源区域容器 */
-  --src-surface: color-mix(in srgb, var(--glass) 52%, transparent);
-  --src-line: var(--line);
-  --src-line-strong: color-mix(in srgb, var(--ink) 16%, transparent);
   --src-radius: 16px;
   --src-pad: 16px;
   --src-gap: 20px;          /* 来源区域之间 */
   --src-grid-gap: 10px;     /* 区域内的卡片网格 */
-  /* 语义层：卡片（降权） */
-  --card-surface: color-mix(in srgb, #101c38 68%, transparent);
-  --card-line: color-mix(in srgb, var(--ink) 10%, transparent);
-  --card-shadow-hover: 0 6px 16px rgba(0, 0, 0, .28);
-  /* 语义层：来源节点（树上一级节点） */
   --sn-name-size: 17px;
   --sn-count-size: 11.5px;
+}
+body[data-env="day"] {
+  --src-surface: var(--bg-surface);
+  --src-line: var(--border);
+  --src-line-strong: var(--border-strong);
+  --card-surface: var(--bg-card);
+  --card-line: var(--border);
+  --card-shadow-hover: var(--shadow-lift);
+}
+body[data-env="night"] {
+  --src-surface: var(--bg-surface);
+  --src-line: var(--border);
+  --src-line-strong: var(--border-strong);
+  --card-surface: var(--bg-card);
+  --card-line: var(--border);
+  --card-shadow-hover: var(--shadow-lift);
 }
 
 /* —— 来源页顶部导航条 —— */
@@ -838,3 +859,640 @@ body.source-mode #stage { padding-top: 46px; }
 .limb.on { stroke-width: 14; opacity: 1; filter: drop-shadow(0 0 10px var(--c)); }
 /* 树干在树冠模式下更高更粗，是最高视觉权重 */
 .src-node .sn-name { letter-spacing: .4px; }
+
+/* ==================================================================
+   Stage 3.4：新闻树 UI 视觉重构
+   核心视觉：「现代新闻编辑室 + 数字生态树」
+   ------------------------------------------------------------------
+   设计原则：
+     · 新闻树是首页绝对主视觉；辅助 UI 一律不得抢过它
+     · 树是「一棵被画出来的树」，不是流程图、不是粒子网、不是卡片墙
+     · 新闻源节点属于树的结构（有连接茎、有分类归属），不是漂浮的白卡片
+     · DAY 与 NIGHT 是两个**环境**，不是两次换色
+   层级优先级（§8）：树 > 节点 > 交互位置 > 预览 > 品牌 > 统计 > 控制
+   ================================================================== */
+
+/* —— 语义层：环境无关的排版与尺度 —— */
+:root {
+  --font-ui: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI",
+             "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --font-num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --top-h: 60px;
+  --bot-h: 64px;
+  --badge-r: 17px;
+  --ease: cubic-bezier(.32, .72, .28, 1);   /* 100~300ms 交互统一用这条缓动 */
+}
+
+/* ==================================================================
+   ⓪ 统一语义变量层（Stage 3.5）
+   ------------------------------------------------------------------
+   规则：**DAY / NIGHT 是全站颜色环境；树 / 列表 / 热榜 / 详情只是布局模式。**
+   布局模式不得决定颜色主题 —— 任何组件都不许再写死颜色，只引用这里的变量。
+   旧变量名（--ink / --muted / --line / --glass）保留为别名，避免大范围改动。
+   ================================================================== */
+body[data-env="day"] {
+  /* 背景 */
+  --bg-main: #f3f0e9;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #fbfaf7;
+  --bg-chip: rgba(27, 26, 23, .05);
+  --bg-chip-hover: rgba(27, 26, 23, .10);
+  /* 文字 */
+  --text-primary: #1b1a17;
+  --text-secondary: #5d574f;
+  --text-muted: #736d64;
+  --text-on-accent: #ffffff;
+  /* 描边与阴影（DAY 阴影非常克制）*/
+  --border: rgba(27, 26, 23, .13);
+  --border-strong: rgba(27, 26, 23, .26);
+  --shadow: 0 1px 2px rgba(27, 26, 23, .05);
+  --shadow-lift: 0 6px 18px rgba(27, 26, 23, .10);
+  /* 强调与语义色 */
+  --accent: #8c2f22;
+  --track: rgba(27, 26, 23, .10);
+  --rank-1: #8a5f08;
+  --rank-2: #5c626c;
+  --rank-3: #8f4a20;
+  --hot: #b3341f;
+  --heat: #a3541a;
+  /* —— 环境专属（背景 / 树）—— */
+  --bg-sky: #d9e4ef; --bg-paper: #f3f0e9; --bg-deep: #e4e0d6;
+  --trunk-a: #463a2e; --trunk-b: #77644f; --trunk-c: #9d8a6f;
+  --limb-tint: #2a2621; --limb-mix: 58%; --limb-w: 22;
+  --node-abbr: #17140f; --node-name: #1b1a17; --node-count: #736d64;
+  --stem-mix: 62%; --badge-ring: rgba(255, 255, 255, .92);
+  --glass: rgba(255, 255, 255, .6);
+  --glass-strong: rgba(255, 255, 255, .92);
+  /* 兼容旧变量名 */
+  --ink: var(--text-primary);
+  --muted: var(--text-secondary);
+  --line: var(--border);
+}
+
+/* ==================================================================
+   ① DAY —— 清晨 / 纸张 / 雾 / 天空 / 现代杂志
+   浅色但不能纯白：顶部一层薄雾天空，中部是纸，底部微微压深。
+   树干与枝干必须明显（这是 DAY 最容易做砸的地方）。
+   ================================================================== */
+body[data-env="day"] #bg {
+  background:
+    linear-gradient(180deg,
+      #c9d9e9 0%, #dfe8f0 16%, #eef1f2 34%,
+      var(--bg-paper) 54%, var(--bg-paper) 74%, #ddd7c9 100%);
+}
+/* 雾：几片极淡的白色横带，营造「清晨纸面」的空气感（不是发光） */
+body[data-env="day"] #bg .aurora {
+  background:
+    radial-gradient(64% 20% at 26% 60%, rgba(255, 255, 255, .92), transparent 70%),
+    radial-gradient(54% 16% at 74% 68%, rgba(255, 255, 255, .78), transparent 72%),
+    radial-gradient(90% 26% at 50% 30%, rgba(196, 216, 238, .6), transparent 74%);
+  opacity: 1;
+  filter: blur(44px);
+}
+/* 散落发光点一律去掉（§2 / §4 明确禁止） */
+body[data-env="day"] #bg .stars,
+body[data-env="night"] #bg .stars { display: none; }
+body[data-env="day"] #bg .vignette {
+  background: radial-gradient(124% 92% at 50% 44%, transparent 60%, rgba(58, 52, 44, .11));
+}
+
+/* ==================================================================
+   ② NIGHT —— 夜空 / 数字生态 / 安静 / 深度
+   近黑的深蓝底；树干与枝干低亮度；**新闻源节点成为主要光源**。
+   没有满屏粒子、没有廉价赛博朋克、没有整页发光。
+   ================================================================== */
+body[data-env="night"] {
+  /* 背景 */
+  --bg-main: #070b14;
+  --bg-surface: #0d1424;
+  --bg-card: #111a2c;
+  --bg-card-hover: #162034;
+  --bg-chip: rgba(233, 237, 245, .08);
+  --bg-chip-hover: rgba(233, 237, 245, .15);
+  /* 文字 */
+  --text-primary: #e9edf5;
+  --text-secondary: #a8b3c6;
+  --text-muted: #7d8798;
+  --text-on-accent: #06101f;
+  /* 描边与阴影 */
+  --border: rgba(233, 237, 245, .13);
+  --border-strong: rgba(233, 237, 245, .28);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-lift: 0 8px 24px rgba(0, 0, 0, .5);
+  /* 强调与语义色 */
+  --accent: #6ea8fe;
+  --track: rgba(233, 237, 245, .14);
+  --rank-1: #ffd166;
+  --rank-2: #dfe7f5;
+  --rank-3: #eea36f;
+  --hot: #ff8fb2;
+  --heat: #ffb86b;
+  /* —— 环境专属（背景 / 树）—— */
+  --bg-sky: #070b14; --bg-paper: #0a1020; --bg-deep: #04060c;
+  --trunk-a: #0d131e; --trunk-b: #16202e; --trunk-c: #22303f;
+  --limb-tint: #16202e; --limb-mix: 46%; --limb-w: 18;
+  --node-abbr: #0b0f16; --node-name: #dfe6f2; --node-count: #8a94a6;
+  --stem-mix: 52%; --badge-ring: rgba(255, 255, 255, .18);
+  --glass: rgba(12, 17, 28, .62);
+  --glass-strong: rgba(9, 13, 22, .9);
+  /* 兼容旧变量名 */
+  --ink: var(--text-primary);
+  --muted: var(--text-secondary);
+  --line: var(--border);
+}
+body[data-env="night"] #bg {
+  background:
+    linear-gradient(180deg, var(--bg-sky) 0%, var(--bg-paper) 44%, var(--bg-deep) 100%);
+}
+/* 夜空的空气感：顶部一层极暗的冷光，底部更深 —— 深度靠明度梯度，不靠粒子 */
+body[data-env="night"] #bg .aurora {
+  background:
+    radial-gradient(58% 30% at 50% 6%, rgba(58, 96, 156, .26), transparent 72%),
+    radial-gradient(44% 26% at 16% 74%, rgba(28, 52, 90, .22), transparent 76%),
+    radial-gradient(44% 26% at 84% 70%, rgba(44, 36, 82, .18), transparent 76%);
+  opacity: 1;
+  filter: blur(64px);
+}
+body[data-env="night"] #bg .vignette {
+  background: radial-gradient(120% 90% at 50% 42%, transparent 52%, rgba(0, 0, 0, .55));
+}
+
+/* —— 全局排版：更轻的字重、更紧的字距（编辑室的克制感）—— */
+body[data-env="day"], body[data-env="night"] {
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ==================================================================
+   ③ 树干 / 主枝 —— 两套环境下的不同「实体感」
+   ================================================================== */
+/* SVG 渐变由 CSS 驱动 → 同一份 defs 在两套环境下给出不同的树干 */
+#trunk-grad stop:nth-child(1) { stop-color: var(--trunk-a, #463a2e); }
+#trunk-grad stop:nth-child(2) { stop-color: var(--trunk-b, #77644f); }
+#trunk-grad stop:nth-child(3) { stop-color: var(--trunk-c, #9d8a6f); }
+.trunk { fill: url(#trunk-grad); opacity: 0; transition: opacity .6s ease var(--d, 0ms); }
+.bark-line { fill: none; opacity: .5; }
+body[data-env="day"] .bark-line { stroke: rgba(30, 24, 18, .34); stroke-width: 2.4; }
+body[data-env="night"] .bark-line { stroke: rgba(190, 212, 240, .12); stroke-width: 2.2; }
+body[data-env="day"] .ground-shadow { fill: rgba(40, 34, 26, .16); }
+body[data-env="night"] .ground-shadow { fill: rgba(0, 0, 0, .5); }
+
+/* 主枝：分类色与墨色混合 —— 既有分类辨识度，又像「画出来的枝」而不是彩色塑料 */
+body[data-env="day"] .limb,
+body[data-env="night"] .limb {
+  stroke: color-mix(in srgb, var(--c) var(--limb-mix), var(--limb-tint));
+  stroke-width: var(--limb-w);
+  stroke-linecap: round;
+  opacity: .9;
+}
+body[data-env="day"] .limb.on { stroke-width: calc(var(--limb-w) + 3); opacity: 1; }
+body[data-env="night"] .limb { opacity: .78; }
+body[data-env="night"] .limb.on {
+  stroke-width: calc(var(--limb-w) + 3);
+  opacity: 1;
+  /* hover 只在局部增亮（§4：不允许整个页面到处发光） */
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--c) 55%, transparent));
+}
+
+/* ==================================================================
+   ④ 新闻源节点（首页无叶片模式）—— 属于树的节点，不是漂浮卡片
+   结构：连接茎 → 圆形徽标（来源缩写）→ 名称 / 条数
+   ================================================================== */
+.sn-bare { cursor: pointer; }
+.sn-bare .sn-stem {
+  fill: none;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  transition: opacity .18s var(--ease), stroke-width .18s var(--ease);
+}
+body[data-env="day"] .sn-bare .sn-stem {
+  stroke: color-mix(in srgb, var(--c) var(--stem-mix), #2a2621);
+  opacity: .5;
+}
+body[data-env="night"] .sn-bare .sn-stem {
+  stroke: color-mix(in srgb, var(--c) var(--stem-mix), #16202e);
+  opacity: .42;
+}
+.sn-bare .sn-badge {
+  fill: var(--c);
+  stroke: var(--badge-ring);
+  stroke-width: 2;
+  transition: transform .2s var(--ease), filter .2s var(--ease);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sn-bare .sn-abbr {
+  font-size: 17px; font-weight: 700; letter-spacing: 0;
+  fill: var(--node-abbr);
+  pointer-events: none;
+}
+.sn-bare .sn-name {
+  font-size: 19px; font-weight: 600; letter-spacing: -.01em;
+  fill: var(--node-name);
+  pointer-events: none;
+}
+.sn-bare .sn-count {
+  font-size: 13px; font-weight: 500;
+  fill: var(--node-count);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+/* hover / focus：节点稍微放大 + 茎变实 —— 动效克制，不做弹跳 */
+.sn-bare:hover .sn-badge,
+.sn-bare.active .sn-badge {
+  transform: scale(1.16);
+  stroke-width: 2;
+}
+.sn-bare:hover .sn-stem,
+.sn-bare.active .sn-stem { opacity: .85; stroke-width: 2.2; }
+.sn-bare:hover .sn-name,
+.sn-bare.active .sn-name { font-weight: 700; }
+body[data-env="night"] .sn-bare:hover .sn-badge,
+body[data-env="night"] .sn-bare.active .sn-badge {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--c) 62%, transparent));
+}
+body[data-env="day"] .sn-bare:hover .sn-badge,
+body[data-env="day"] .sn-bare.active .sn-badge {
+  stroke: #fff;
+}
+.sn-bare:focus-visible { outline: none; }
+.sn-bare:focus-visible .sn-badge {
+  stroke: var(--accent); stroke-width: 2.6; stroke-dasharray: none;
+}
+
+/* —— 分类标签：让「不同分类对应不同主枝」一眼可读 —— */
+.cat-tag .ct-bg {
+  fill: color-mix(in srgb, var(--c) 20%, var(--bg-paper));
+  stroke: color-mix(in srgb, var(--c) 62%, transparent);
+  stroke-width: 1.4;
+}
+body[data-env="night"] .cat-tag .ct-bg {
+  fill: color-mix(in srgb, var(--c) 22%, #0d1424);
+  stroke: color-mix(in srgb, var(--c) 52%, transparent);
+}
+.cat-tag .ct-text {
+  font-size: 18px; font-weight: 700; letter-spacing: .04em;
+  fill: color-mix(in srgb, var(--c) 46%, var(--ink));
+}
+body[data-env="day"] .cat-tag .ct-text { fill: color-mix(in srgb, var(--c) 40%, #14120f); }
+body[data-env="night"] .cat-tag .ct-text { fill: color-mix(in srgb, var(--c) 62%, #ffffff); }
+
+/* ==================================================================
+   ⑤ 页面布局 —— 全屏沉浸式：顶部品牌+统计，底部分类+环境，中间全是树
+   ================================================================== */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--top-h); z-index: 40;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 0 clamp(14px, 2.4vw, 34px);
+  pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+body[data-env="day"] .topbar {
+  background: linear-gradient(180deg, rgba(243, 240, 233, .82), rgba(243, 240, 233, 0) 100%);
+}
+body[data-env="night"] .topbar {
+  background: linear-gradient(180deg, rgba(7, 11, 20, .8), rgba(7, 11, 20, 0) 100%);
+}
+/* 品牌：NEWS TREE —— 编辑室刊头 */
+.brand {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: none; border: 0; cursor: pointer;
+  color: var(--ink); padding: 6px 0;
+  font-size: 17px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+}
+.brand svg { width: 22px; height: 22px; color: var(--accent); }
+.brand .brand-sub {
+  font-size: 11px; font-weight: 500; letter-spacing: .1em;
+  color: var(--muted); text-transform: none; margin-left: 2px;
+}
+/* 统计：15 SOURCES / 209 STORIES / LAST UPDATED —— 数据要准，视觉要轻 */
+.top-stats { display: flex; align-items: baseline; gap: clamp(14px, 2vw, 30px); }
+.top-stats .ts { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.top-stats .ts b {
+  font-family: var(--font-num); font-size: 15px; font-weight: 600;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.top-stats .ts i {
+  font-style: normal; font-size: 10px; font-weight: 600;
+  letter-spacing: .14em; color: var(--muted); text-transform: uppercase;
+}
+@media (max-width: 720px) {
+  .top-stats .ts i { display: none; }
+  .brand .brand-sub { display: none; }
+}
+
+/* 底部控制条：分类 + DAY/NIGHT + 工具（§5「其他控制项尽量收到底部」）*/
+.cat-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; height: var(--bot-h); z-index: 40;
+  display: flex; align-items: center; gap: clamp(10px, 1.6vw, 22px);
+  padding: 0 clamp(14px, 2.4vw, 34px);
+}
+body[data-env="day"] .cat-bar {
+  background: linear-gradient(0deg, rgba(243, 240, 233, .9), rgba(243, 240, 233, 0) 100%);
+}
+body[data-env="night"] .cat-bar {
+  background: linear-gradient(0deg, rgba(7, 11, 20, .88), rgba(7, 11, 20, 0) 100%);
+}
+.cat-bar-hint {
+  font-size: 10px; font-weight: 600; letter-spacing: .14em;
+  color: var(--muted); text-transform: uppercase; flex: none;
+}
+.cat-scroll {
+  display: flex; align-items: center; gap: 7px; flex: 1 1 auto;
+  overflow-x: auto; scrollbar-width: none; min-width: 0;
+}
+.cat-scroll::-webkit-scrollbar { display: none; }
+.cat-btn {
+  flex: none; cursor: pointer;
+  padding: 7px 15px; border-radius: 99px;
+  font-size: 12.5px; font-weight: 500; letter-spacing: .01em;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  color: var(--muted);
+  transition: background .16s var(--ease), color .16s var(--ease), border-color .16s var(--ease);
+}
+.cat-btn:hover { background: color-mix(in srgb, var(--ink) 12%, transparent); color: var(--ink); }
+.cat-btn.active {
+  background: var(--ink); color: var(--bg-paper);
+  font-weight: 600; border-color: transparent;
+}
+body[data-env="day"] .cat-btn.active { background: #1b1a17; color: #f3f0e9; }
+body[data-env="night"] .cat-btn.active { background: #e9edf5; color: #0a1020; }
+
+/* DAY / NIGHT 切换：两段式，当前态明确 */
+.env-toggle {
+  display: inline-flex; flex: none; padding: 3px; border-radius: 99px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  border: 1px solid var(--line);
+}
+.env-btn {
+  cursor: pointer; border: 0; background: transparent; border-radius: 99px;
+  padding: 6px 14px; font-size: 11px; font-weight: 600; letter-spacing: .12em;
+  color: var(--muted); transition: background .18s var(--ease), color .18s var(--ease);
+}
+.env-btn:hover { color: var(--ink); }
+.env-btn.active { background: var(--ink); color: var(--bg-paper); }
+body[data-env="day"] .env-btn.active { background: #1b1a17; color: #f3f0e9; }
+body[data-env="night"] .env-btn.active { background: #e9edf5; color: #0a1020; }
+
+.bar-tools { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.bar-tools .icon-btn {
+  width: 34px; height: 34px; border-radius: 99px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  border: 1px solid transparent; color: var(--ink);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; line-height: 1; cursor: pointer;
+  transition: background .16s var(--ease);
+}
+.bar-tools .icon-btn:hover { background: color-mix(in srgb, var(--ink) 14%, transparent); }
+#refresh.spinning { animation: spin .8s linear infinite; }
+
+/* 树所在的舞台要为顶/底条让出空间，但保持「全屏沉浸」——只留很薄的边距 */
+#stage { padding-top: var(--top-h); padding-bottom: calc(var(--bot-h) - 22px); }
+
+/* 缩放坞：收到右下、低视觉权重（§8 控制项优先级最低） */
+.zoom-dock { bottom: calc(var(--bot-h) + 6px); right: 14px; gap: 6px; }
+.zoom-dock .icon-btn {
+  width: 34px; height: 34px; border-radius: 99px;
+  background: var(--glass); border: 1px solid var(--line);
+  color: var(--ink); backdrop-filter: blur(14px);
+  font-size: 14px;
+}
+.zoom-dock .icon-btn:hover { background: var(--glass-strong); }
+.zoom-dock .icon-btn.wide { width: auto; padding: 0 12px; font-size: 12px; }
+
+/* 左侧「显示方式」面板：压到最低视觉权重（§8 控制项优先级最低） */
+.left-dock {
+  left: 12px;
+  background: color-mix(in srgb, var(--glass) 72%, transparent);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(14px);
+  border-radius: 12px;
+  box-shadow: none;
+  padding: 6px;
+  gap: 3px;
+}
+.left-dock .dock-head { border-bottom: 0; margin-bottom: 0; padding: 0; }
+.left-dock .dock-title {
+  font-size: 9px; letter-spacing: .16em; color: var(--muted);
+  text-transform: uppercase; font-weight: 600;
+}
+.left-dock .dock-toggle { font-size: 12px; padding: 0 4px; color: var(--muted); }
+.dock-btn {
+  background: transparent; border: 1px solid transparent; color: var(--muted);
+  font-weight: 500; font-size: 12px; border-radius: 8px; padding: 6px 8px;
+}
+.dock-btn .db-ico { font-size: 13px; }
+.dock-btn:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+.dock-btn.active {
+  background: color-mix(in srgb, var(--ink) 11%, transparent);
+  color: var(--ink); border-color: var(--line);
+}
+
+/* ==================================================================
+   ⑥ 预览卡 / 悬停卡 —— 轻量浮层，不是大型后台卡片
+   ------------------------------------------------------------------
+   注意：这里必须包含**完整的定位与布局规则**。Stage 3.3 把这一整块写在
+   Apple 段里，3.4 替换那段时只补了配色，结果预览卡退化成文档流里的
+   1366px 整宽块（肉眼完全看不到预览）—— 浏览器实测截图抓出来的。
+   ================================================================== */
+.peek-card {
+  position: fixed; z-index: 72;
+  width: min(330px, calc(100vw - 24px));
+  border-radius: 16px;
+  padding: 14px 16px 12px;
+  pointer-events: none;
+  opacity: 0; transform: translateY(4px) scale(.985);
+  animation: pk-in .18s cubic-bezier(.2, .8, .3, 1) forwards;
+}
+@keyframes pk-in { to { opacity: 1; transform: none; } }
+.peek-card.hidden { display: none; }
+.peek-card, .hover-card {
+  background: var(--glass-strong);
+  border: 1px solid var(--line);
+  backdrop-filter: saturate(150%) blur(20px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .16);
+}
+body[data-env="night"] .peek-card,
+body[data-env="night"] .hover-card { box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+.pk-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; margin-bottom: 10px;
+}
+.pk-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.pk-item { display: grid; gap: 3px; padding-left: 11px; position: relative; }
+.pk-item::before {
+  content: ""; position: absolute; left: 0; top: 6px;
+  width: 3px; height: 3px; border-radius: 50%;
+  background: var(--muted);
+}
+.pk-empty { padding-left: 0; }
+.pk-empty::before { display: none; }
+.pk-name { font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; color: var(--ink); }
+.pk-count { font-size: 11.5px; color: var(--muted); }
+.pk-t {
+  font-size: 12.5px; line-height: 1.5; color: var(--ink);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.pk-time { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pk-foot {
+  margin-top: 12px; padding-top: 11px;
+  border-top: 1px solid var(--line); color: var(--accent);
+  font-size: 11.5px; font-weight: 600;
+}
+.hover-card { border-radius: 14px; }
+.hc-title { color: var(--ink); font-weight: 600; }
+.hc-summary { color: var(--muted); }
+.hc-chip {
+  color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.hc-open { background: var(--accent); color: var(--bg-paper); border-radius: 99px; }
+body[data-env="night"] .hc-open { color: #06101f; }
+
+/* 底部提示：低权重 */
+.tree-hint {
+  bottom: calc(var(--bot-h) + 4px);
+  background: var(--glass); border: 1px solid var(--line);
+  color: var(--muted); font-size: 11px; backdrop-filter: blur(14px);
+}
+
+/* ==================================================================
+   ⑦ 无叶片模式：LOD 只降结构，节点必须始终在场
+   ================================================================== */
+.bare-mode.lod-2 .src-node { display: block; }
+.bare-mode.lod-2 .leaf, .bare-mode.lod-2 .spine { display: none; }
+
+/* 响应式：小屏把树的空间尽量留足，控制条收窄 */
+@media (max-width: 560px) {
+  :root { --top-h: 52px; --bot-h: 56px; }
+  .brand { font-size: 15px; letter-spacing: .12em; }
+  .brand svg { width: 18px; height: 18px; }
+  .top-stats { gap: 10px; }
+  .top-stats .ts b { font-size: 13px; }
+  .top-stats .ts i { font-size: 9px; letter-spacing: .1em; }
+  .env-btn { padding: 6px 10px; font-size: 10px; }
+  .cat-btn { padding: 6px 12px; font-size: 12px; }
+  .peek-card { width: min(280px, calc(100vw - 20px)); padding: 12px 13px 11px; }
+  .pk-t { -webkit-line-clamp: 1; }
+  /* 窄屏下左侧面板只留图标，别吃掉树的空间（§8：控制项优先级最低） */
+  .left-dock { left: 8px; padding: 5px; gap: 2px; }
+  .left-dock .dock-title { display: none; }
+  .left-dock .dock-head { display: none; }
+  .dock-btn { padding: 7px 8px; }
+  .dock-btn span:not(.db-ico) { display: none; }
+  .dock-btn .db-ico { font-size: 15px; }
+  .zoom-dock { right: 8px; }
+  .zoom-dock .icon-btn { width: 32px; height: 32px; }
+  .zoom-dock .icon-btn.wide { display: none; }
+  .tree-hint { display: none; }
+}
+
+/* ==================================================================
+   Stage 3.5：DAY 环境下的树与来源页
+   ------------------------------------------------------------------
+   叶片 / 分类标签 / 连线原本都写死了「深底浅字」（为 NIGHT 调的），
+   在 DAY 的浅色环境里会变成深底深字 → 必须按环境各给一套。
+   ================================================================== */
+body[data-env="day"] .leaf-pill {
+  fill: color-mix(in srgb, var(--c) 14%, #ffffff);
+  stroke: color-mix(in srgb, var(--c) 46%, transparent);
+}
+body[data-env="day"] .leaf-title { fill: #1b1a17; font-weight: 700; }
+body[data-env="day"] .leaf-meta { fill: color-mix(in srgb, var(--c) 50%, #5d574f); }
+body[data-env="day"] .leaf:hover .leaf-pill,
+body[data-env="day"] .leaf.active .leaf-pill {
+  fill: color-mix(in srgb, var(--c) 28%, #ffffff);
+  stroke: color-mix(in srgb, var(--c) 82%, transparent);
+  filter: none;
+}
+body[data-env="day"] .leaf:hover .leaf-title,
+body[data-env="day"] .leaf.active .leaf-title { fill: #14120f; }
+body[data-env="day"] .lod-1 .leaf-pill {
+  fill: color-mix(in srgb, var(--c) 24%, #ffffff);
+  stroke: color-mix(in srgb, var(--c) 62%, transparent);
+}
+body[data-env="day"] .leaf.hot .leaf-pill { filter: none; }
+
+/* 分类标签 / 来源点 / 来源名（fan 模式的来源页会用到） */
+body[data-env="day"] .cat-label-bg {
+  fill: color-mix(in srgb, var(--c) 16%, #ffffff);
+  stroke: color-mix(in srgb, var(--c) 58%, transparent);
+}
+body[data-env="day"] .cat-label-text { fill: #1b1a17; }
+body[data-env="day"] .src-name { fill: rgba(27, 26, 23, .62); }
+body[data-env="day"] .lod-2 .src-name { fill: #1b1a17; }
+
+/* 连线：DAY 下走「墨线 + 分类色」而不是发光线 */
+body[data-env="day"] .branch-main { stroke: color-mix(in srgb, var(--c) 58%, #2a2621); }
+body[data-env="day"] .branch-sub { stroke: color-mix(in srgb, var(--c) 48%, #4a443c); }
+body[data-env="day"] .spine { stroke: color-mix(in srgb, var(--c) 42%, #6b6459); }
+
+/* 来源页顶部导航条：DAY 用磨砂白，NIGHT 用暗玻璃 */
+body[data-env="day"] .source-bar {
+  background: rgba(255, 255, 255, .9);
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+body[data-env="day"] .sb-back { color: var(--text-primary); border-color: var(--border); }
+body[data-env="day"] .sb-back:hover,
+body[data-env="day"] .sb-back:focus-visible { border-color: var(--accent); color: var(--accent); }
+body[data-env="day"] .sb-name { color: color-mix(in srgb, var(--c, var(--accent)) 58%, #1b1a17); }
+body[data-env="day"] .sb-count, body[data-env="day"] .sb-hint { color: var(--text-secondary); }
+body[data-env="night"] .source-bar { background: var(--glass-strong); border-color: var(--border); }
+
+/* 来源页的「来源区域」列表卡片也统一走语义变量 */
+.src-section { background: var(--bg-surface); border-color: var(--border); }
+body[data-env="day"] .src-section { background: var(--bg-card); }
+body[data-env="day"] .ss-name { color: color-mix(in srgb, var(--c, var(--accent)) 62%, #1b1a17); }
+body[data-env="day"] .ss-count, body[data-env="day"] .ss-tag { color: var(--text-secondary); }
+
+/* 列表/热榜/详情的标题在 DAY 下必须是深色（原来是继承 --ink，现在显式兜底） */
+body[data-env="day"] .lv-title,
+body[data-env="day"] .detail-title,
+body[data-env="day"] .nc-title,
+body[data-env="day"] .card .title { color: var(--text-primary); }
+body[data-env="day"] .detail-meta { color: var(--text-secondary); }
+body[data-env="day"] .b-meta { color: var(--text-secondary); }
+body[data-env="day"] .nc-line { color: var(--text-secondary); }
+body[data-env="day"] .nc-src { color: var(--text-primary); }
+body[data-env="day"] .nc-time { color: var(--text-muted); }
+body[data-env="day"] .row-item { color: var(--text-primary); }
+
+/* DAY 下「用分类色当文字色」的地方必须往墨色压一档 ——
+   分类色是为深色底挑的（#fb7185 / #fbbf24 等），直接放在浅底上对比度不足。 */
+body[data-env="day"] .hot-plat { color: color-mix(in srgb, var(--c, var(--accent)) 56%, #1b1a17); }
+body[data-env="day"] .nc-cat {
+  color: color-mix(in srgb, var(--c, var(--accent)) 52%, #1b1a17);
+  border-color: color-mix(in srgb, var(--c, var(--accent)) 40%, transparent);
+}
+body[data-env="day"] .card .tag,
+body[data-env="day"] .detail-tag,
+body[data-env="day"] .lg-name { color: color-mix(in srgb, var(--accent) 88%, #1b1a17); }
+body[data-env="day"] .nc-heat { color: color-mix(in srgb, var(--ink) 62%, transparent); }
+body[data-env="day"] .b-heat b { color: color-mix(in srgb, var(--accent) 88%, #1b1a17); }
+
+/* 详情页：底部控制条只留 DAY/NIGHT 与工具，收起分类（详情页没有分类筛选） */
+body.detail-mode .cat-bar-hint,
+body.detail-mode #cat-scroll { display: none; }
+body.detail-mode .cat-bar { justify-content: flex-end; }
+/* 详情页没有左侧面板，舞台不需要为它留位置 */
+body.detail-mode #stage { padding-top: var(--top-h); }
+
+/* DAY 收口：几处仍写死「深色底上的亮字」的组件（左侧面板选中态 / 提示条 /
+   分类按钮选中态 / 来源区域标题）—— 统一走语义变量或按环境压深。 */
+body[data-env="day"] .dock-btn.active { color: var(--text-primary); box-shadow: none; }
+body[data-env="day"] .dock-btn.active .db-ico { color: var(--text-primary); }
+body[data-env="day"] .cat-btn.active { color: var(--text-on-accent); box-shadow: none; }
+body[data-env="day"] .toast.warn { border-color: color-mix(in srgb, var(--rank-1) 55%, transparent); color: color-mix(in srgb, var(--rank-1) 88%, #1b1a17); }
+body[data-env="day"] .toast.err { border-color: color-mix(in srgb, #b3341f 45%, transparent); color: #8f2418; }
+body[data-env="day"] .ss-count { color: var(--text-secondary); }
+body[data-env="day"] .ss-tag {
+  color: color-mix(in srgb, var(--c, var(--accent)) 52%, #1b1a17);
+  background: color-mix(in srgb, var(--c, var(--accent)) 12%, transparent);
+}
+body[data-env="day"] .ss-enter:hover,
+body[data-env="day"] .ss-enter:focus-visible { color: color-mix(in srgb, var(--c, var(--accent)) 58%, #1b1a17); }
+body[data-env="day"] .linklike:hover { color: var(--accent); }

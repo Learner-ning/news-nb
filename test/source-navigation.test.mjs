@@ -314,3 +314,30 @@ test("附加. 来源区域渲染包含名称 / 数量 / 分类 / 进入新闻树
   V.renderSourceSections(empty, []);
   assert.ok(empty.innerHTML.includes("list-empty"));
 });
+
+// ============ Stage 3.4 回归：parseRoute() 不传参时必须按当前地址解析 ============
+// 背景：app.js 的三处调用都是 `parseRoute()`（不传参），而原实现把不传参
+// 直接当成 "/" → 永远返回 main。结果 /source/:key 与 /detail/:id 的直接访问、
+// 刷新、分享链接、浏览器前进后退全部失效（单测当时传了显式路径所以没暴露）。
+// 这条用例锁住「不传参 = 读 location.pathname」这个契约。
+test("路由. parseRoute() 不传参时读取当前地址（Stage 3.4 回归）", () => {
+  const saved = globalThis.location;
+  try {
+    globalThis.location = { pathname: "/source/Solidot" };
+    assert.equal(R.parseRoute().view, "source");
+    assert.equal(R.parseRoute().key, "Solidot");
+
+    globalThis.location = { pathname: "/detail/abc123" };
+    assert.equal(R.parseRoute().view, "detail");
+    assert.equal(R.parseRoute().id, "abc123");
+
+    globalThis.location = { pathname: "/" };
+    assert.equal(R.parseRoute().view, "main");
+  } finally {
+    if (saved === undefined) delete globalThis.location;
+    else globalThis.location = saved;
+  }
+  // 显式传参的行为不变（纯函数性质保留）
+  assert.equal(R.parseRoute("/source/%E5%BE%AE%E5%8D%9A").key, "微博");
+  assert.equal(R.parseRoute("/").view, "main");
+});

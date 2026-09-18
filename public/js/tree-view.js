@@ -31,6 +31,24 @@ function branchPath(p0, p1) {
   return `M ${p0.x} ${p0.y} Q ${mx} ${my} ${p1.x} ${p1.y}`;
 }
 
+/** 来源徽标半径（与布局层 bareNodeH 的口径对应：2r ≈ bareNodeH - 6） */
+const SN_BADGE_R = 24;
+
+/**
+ * 来源缩写：给「新闻源徽标」用的 1~2 字符标识。
+ * 中文取前两字；拉丁取前两个词的首字母（单词不足则取前两位）。
+ * 纯函数、无随机 —— 同一来源名永远得到同一缩写。
+ */
+function sourceAbbr(name) {
+  const s = String(name || "").trim();
+  if (!s) return "?";
+  const isCjk = (ch) => /[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(ch);
+  if (isCjk(s[0])) return s.slice(0, 2);
+  const words = s.split(/[\s\-_.·]+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return s.slice(0, 2).toUpperCase();
+}
+
 export class TreeView {
   constructor(svg) {
     this.svg = svg;
@@ -53,6 +71,7 @@ export class TreeView {
     this.onLeave = null;
     this.onOpen = null;
     this.onOpenSource = null;    // 点击新闻源节点 → 进入独立新闻树
+    this.onPeekSource = null;    // 悬停新闻源节点 → 回调 (key, el, count) 供上层弹出预览卡
     this._attached = false;
     this._lod = -1;
     this.geom = null;
@@ -66,16 +85,22 @@ export class TreeView {
    *   showSourceLayer: true  → 两级渲染（分类 → 来源 → 叶片），用于来源页
    *                     false → 一级节点本身就是新闻源（首页新闻源树），
    *                             渲染时省略中间层，主枝直接连到叶片簇
+   *   mode: "crown" | "crown-bare" | "fan"
+   *         "crown-bare" = 首页无叶片骨架：只画树干 + 主枝 + 新闻源节点，
+   *                        新闻（叶片）只有点进某个来源后才出现。
    */
   build(entries, opts = {}) {
     const showSourceLayer = opts.showSourceLayer !== false;
     const mode = opts.mode || (showSourceLayer ? undefined : "crown");
+    const bare = mode === "crown-bare";
     this.showSourceLayer = showSourceLayer;
+    this.bare = bare;
     this.world.innerHTML = "";
     this.leafElm.clear();
     this.srcElm.clear();
     this.svg.classList.toggle("no-tree", !entries || !entries.length);
     this.svg.classList.toggle("source-mode", !showSourceLayer);
+    this.svg.classList.toggle("bare-mode", bare);
     if (!entries || !entries.length) {
       this.geom = null;
       return;
@@ -118,8 +143,11 @@ export class TreeView {
     const apex = g.apex;
     if (g.limbs && g.limbs.length) {
       // 树冠模式：少量「弯曲粗主枝」，来源节点分布在各自主枝上
+      // Stage 3.4 §2：主枝归属到分类 —— data-tag 让「同一分类的枝」可被整体识别
       g.limbs.forEach((lb, li) => {
-        const grp = svgEl("g", { cls: "bcat", "data-cat": lb.key });
+        const grp = svgEl("g", {
+          cls: "bcat", "data-cat": lb.tag || lb.key || null, "data-tag": lb.tag || null
+        });
         grp.appendChild(svgEl("path", {
           d: `M ${lb.p0.x} ${lb.p0.y} Q ${lb.p1.x} ${lb.p1.y} ${lb.p2.x} ${lb.p2.y}`,
           fill: "none", cls: "limb grow-path", pathLength: 1, "data-limb": li,
@@ -139,7 +167,12 @@ export class TreeView {
       });
     }
 
-    if (showSourceLayer) {
+    // —— 分枝 / 叶簇连线 ——
+    // 无叶片模式（首页）：没有叶片簇，这些「主枝→叶簇」的连接线全部省略，
+    // 结构信息已经由主枝本身承载，多画一层只会变成噪声。
+    if (bare) {
+      // 首页无叶片骨架：不画 sub / spine
+    } else if (showSourceLayer) {
       // —— 两级：分类节点 → 来源节点 → 叶片簇 ——
       for (let ci = 0; ci < g.categories.length; ci++) {
         const c = g.categories[ci];
@@ -172,7 +205,7 @@ export class TreeView {
       });
     }
 
-    // —— 新闻叶片 ——
+    // —— 新闻叶片（无叶片模式下 g.leaves 为空，循环自然不执行）——
     for (const leaf of g.leaves) {
       const c = g.categories[leaf.ci];
       const heat = Number(leaf.item.heatScore) || 0.5;
@@ -224,28 +257,79 @@ export class TreeView {
       });
     } else {
       // 新闻源节点：更大、更高视觉权重、可点击、有 focus 状态
+      // 无叶片模式（首页）下这是页面上唯一的可交互主体 → 尺寸直接取布局给出的节点盒，
+      // 与几何层「不重叠」的口径保持一致（避免渲染尺寸和占位尺寸不一致导致视觉重叠）。
+      //
+      // Stage 3.4 §3：节点必须具有「新闻源」的身份，且**属于树的结构**，
+      // 而不是漂浮在页面上的白色卡片。因此改成：
+      //   连接茎（从主枝落点伸出）→ 圆形徽标（来源缩写）→ 名称 → 条数
+      // 徽标用分类色做描边与浅底，让「同一个分类的来源」在树冠上成片可辨。
       g.categories.forEach((c, ci) => {
         const name = String(c.name || "");
-        const wl = Math.min(240, Math.max(104, textWidth(name) + 40));
+        const wl = bare ? (c.w || 120) : Math.min(240, Math.max(104, textWidth(name) + 40));
+        const h = bare ? (c.h || 40) : 34;
         const grp = svgEl("g", {
-          cls: "src-node", "data-srcnode": c.key,
+          cls: "src-node" + (bare ? " sn-bare" : ""), "data-srcnode": c.key,
           "data-limb": c.limb == null ? null : String(c.limb),
+          "data-tag": bare ? (c.tag || "") : null,
           role: "button", tabindex: "0",
           "aria-label": `${name}，${c.count} 条新闻，进入独立新闻树`,
           style: `--c:${c.color};--d:${170 + ci * 70}ms`
         });
-        grp.appendChild(svgEl("rect", {
-          x: c.node.x - wl / 2, y: c.node.y - 17, width: wl, height: 34, rx: 17, cls: "sn-bg"
-        }));
-        grp.appendChild(svgEl("text", {
-          x: c.node.x, y: c.node.y + 5, "text-anchor": "middle", cls: "sn-name", text: name
-        }));
-        grp.appendChild(svgEl("text", {
-          x: c.node.x, y: c.node.y + 32, "text-anchor": "middle", cls: "sn-count", text: `${c.count} 条`
-        }));
+        if (bare) {
+          // 竖式节点：徽标在上，名称与条数在下。
+          // 比横式窄得多 → 列更密 → 树冠更窄更扁 → 16:9 下 fit 缩放更大、文字更清楚。
+          const r = SN_BADGE_R;
+          const cx = c.node.x;
+          const by = c.node.y - 24;   // 徽标圆心（盒高 104，上半放徽标）
+          const lp = c.limbPoint || { x: c.node.x, y: c.node.y };
+          // 连接茎：节点与枝干的明确关系（没有它，节点就成了漂浮的卡片）
+          grp.appendChild(svgEl("path", {
+            d: `M ${lp.x} ${lp.y} L ${cx} ${by}`, cls: "sn-stem"
+          }));
+          grp.appendChild(svgEl("circle", { cx, cy: by, r, cls: "sn-badge" }));
+          grp.appendChild(svgEl("text", {
+            x: cx, y: by + 6, "text-anchor": "middle", cls: "sn-abbr",
+            text: sourceAbbr(name)
+          }));
+          grp.appendChild(svgEl("text", {
+            x: cx, y: c.node.y + 22, "text-anchor": "middle", cls: "sn-name", text: name
+          }));
+          grp.appendChild(svgEl("text", {
+            x: cx, y: c.node.y + 41, "text-anchor": "middle", cls: "sn-count",
+            text: `${c.count} 条`
+          }));
+        } else {
+          grp.appendChild(svgEl("rect", {
+            x: c.node.x - wl / 2, y: c.node.y - h / 2, width: wl, height: h, rx: h / 2, cls: "sn-bg"
+          }));
+          grp.appendChild(svgEl("text", {
+            x: c.node.x, y: c.node.y + 5, "text-anchor": "middle", cls: "sn-name", text: name
+          }));
+          grp.appendChild(svgEl("text", {
+            x: c.node.x, y: c.node.y + 32, "text-anchor": "middle", cls: "sn-count", text: `${c.count} 条`
+          }));
+        }
         passLabels.appendChild(grp);
         this.srcElm.set(c.key, { g: grp, count: c.count });
       });
+    }
+
+    // —— 分类标签（首页无叶片模式）：让「不同分类对应不同主枝」一眼可读 ——
+    // 放在各分类节点的外侧，位置已由布局层做过碰撞规避。
+    if (bare && g.groupLabels && g.groupLabels.length) {
+      for (const gl of g.groupLabels) {
+        const lw = textWidth(gl.tag) * (18 / 13.5) + 30;
+        const grp = svgEl("g", { cls: "cat-tag", "data-tag": gl.tag, style: `--c:${gl.color}` });
+        grp.appendChild(svgEl("rect", {
+          x: gl.x - lw / 2, y: gl.y - 16, width: lw, height: 32, rx: 16, cls: "ct-bg"
+        }));
+        grp.appendChild(svgEl("text", {
+          x: gl.x, y: gl.y + 6, "text-anchor": "middle", cls: "ct-text",
+          text: `${gl.tag} · ${gl.count}`
+        }));
+        passLabels.appendChild(grp);
+      }
     }
 
     for (const p of [passTrunk, passMain, passSub, passLeaves, passLabels]) this.world.appendChild(p);
@@ -286,6 +370,13 @@ export class TreeView {
     const r = this.svg.getBoundingClientRect();
     if (!r.width || !r.height) return null;
     const f = computeFit(this.bbox(), r.width, r.height, LAYOUT_DEFAULTS);
+    // 竖屏（移动端）下树冠是横向的，若仍按「底部对齐」会留下大片空白、看起来像坏了。
+    // 余量超过 28% 时改为垂直居中 —— 只调视口，不动布局（布局仍是纯函数、与视口无关）。
+    const bb = this.bbox();
+    const bh = (bb.maxY - bb.minY) * f.s;
+    if (r.height - bh > r.height * 0.28) {
+      f.ty = (r.height - bh) / 2 - bb.minY * f.s;
+    }
     this.setTransform(f.tx, f.ty, f.s, animate);
     return f;
   }
@@ -376,7 +467,7 @@ export class TreeView {
       const elm = e.target.closest?.("[data-leaf]");
       if (elm) { this.setHover(elm.getAttribute("data-leaf"), e); return; }
       const sn = e.target.closest?.("[data-srcnode]");
-      if (sn) this.setSourceHover(sn.getAttribute("data-srcnode"));
+      if (sn) this.setSourceHover(sn.getAttribute("data-srcnode"), e);
     });
     svg.addEventListener("pointerout", (e) => {
       const from = e.target.closest?.("[data-leaf]");
@@ -448,7 +539,7 @@ export class TreeView {
   }
 
   /** 新闻源节点 hover 高亮（树冠模式下同时高亮它所在的那条主枝） */
-  setSourceHover(key) {
+  setSourceHover(key, e) {
     if (this._srcHover === key) return;
     this.clearSourceHover();
     this._srcHover = key;
@@ -458,6 +549,10 @@ export class TreeView {
     const limb = rec?.g.getAttribute("data-limb");
     const sel = `.bcat[data-cat="${esc2(key)}"]` + (limb ? `, .limb[data-limb="${esc2(limb)}"]` : "");
     this.world.querySelectorAll(sel).forEach((n) => n.classList.add("on"));
+    // 首页无叶片模式：悬停即「预告」这个来源里有什么 → 交给上层弹预览卡
+    if (this.bare && this.onPeekSource && rec) {
+      this.onPeekSource(key, rec.g, rec.count, e);
+    }
   }
 
   clearSourceHover() {
@@ -466,6 +561,7 @@ export class TreeView {
     if (rec) rec.g.classList.remove("active");
     this._srcHover = null;
     this.world.querySelectorAll(".bcat.on").forEach((n) => n.classList.remove("on"));
+    if (this.bare && this.onPeekSource) this.onPeekSource(null, null, 0);
   }
 
   setHover(id, e) {

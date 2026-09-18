@@ -127,8 +127,10 @@ export function getUpdatedLabel() {
 
 /** 某个来源的主导分类（条目最多的那个，平局按分类优先级） */
 function dominantTag(counter) {
+  // 平局时按「底部分类导航」的稳定顺序决定，避免同权重时顺序抖动（破坏确定性）
+  const rank = new Map(orderTags([...counter.keys()]).map((t, i) => [t, i]));
   return [...counter.entries()].sort(
-    (a, b) => b[1] - a[1] || (TAG_PRIORITY.indexOf(a[0]) < 0 ? 99 : TAG_PRIORITY.indexOf(a[0])) - (TAG_PRIORITY.indexOf(b[0]) < 0 ? 99 : TAG_PRIORITY.indexOf(b[0]))
+    (a, b) => b[1] - a[1] || (rank.get(a[0]) ?? 99) - (rank.get(b[0]) ?? 99)
   )[0][0];
 }
 

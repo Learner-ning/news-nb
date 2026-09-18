@@ -223,8 +223,11 @@ test("13. detail route 不受影响", () => {
   const app = read("/public/js/app.js");
   assert.ok(/tree\.onOpen\s*=\s*\(item\)\s*=>\s*openDetail\(item\.id\)/.test(app));
   assert.ok(/tree\.onOpenSource\s*=\s*\(key\)\s*=>\s*goSource\(key\)/.test(app));
-  // 首页用 crown、来源页用 fan
-  assert.ok(/mode:\s*state\.source\s*\?\s*"fan"\s*:\s*"crown"/.test(app), "首页树冠模式 / 来源页扇形模式");
+  // 首页用 crown-bare（无叶片骨架，Stage 3.3 用户要求）、来源页用 fan
+  assert.ok(
+    /mode:\s*state\.source\s*\?\s*"fan"\s*:\s*"crown-bare"/.test(app),
+    "首页无叶片树冠 / 来源页扇形模式"
+  );
 });
 
 // ============ 附加：树干视觉重量与 LOD ============

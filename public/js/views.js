@@ -192,3 +192,58 @@ export function positionHoverCard(cardEl, evt) {
   cardEl.style.left = x + "px";
   cardEl.style.top = y + "px";
 }
+
+// ---------- 新闻源预览卡（首页悬停来源节点时） ----------
+// 首页不显示新闻，所以悬停时必须能「先看一眼」这个来源里有什么，
+// 否则用户只能盲点。预览列表用真实数据，不编造。
+export function fillPeekCard(cardEl, name, count, items) {
+  cardEl.querySelector("#pk-name").textContent = name;
+  cardEl.querySelector("#pk-count").textContent = count ? `${count} 条` : "";
+  const ul = cardEl.querySelector("#pk-list");
+  ul.innerHTML = "";
+  for (const it of items || []) {
+    const li = document.createElement("li");
+    li.className = "pk-item";
+    li.dataset.id = it.id;
+    const t = document.createElement("span");
+    t.className = "pk-t";
+    t.textContent = it.title || "(无标题)";
+    const tm = document.createElement("span");
+    tm.className = "pk-time";
+    tm.textContent = timeLabel(it);
+    li.append(t, tm);
+    ul.appendChild(li);
+  }
+  if (!ul.children.length) {
+    const li = document.createElement("li");
+    li.className = "pk-item pk-empty";
+    li.textContent = "该来源暂无可用新闻";
+    ul.appendChild(li);
+  }
+  cardEl.querySelector("#pk-foot").textContent = name
+    ? `点击进入「${name}」的新闻树 →`
+    : "点击进入该来源的新闻树 →";
+}
+
+/** 把预览卡摆到节点附近（优先右侧，超出则左/上翻转） */
+export function positionPeekCard(cardEl, anchorEl, evt) {
+  const pad = 16;
+  const m = 14;
+  const cw = cardEl.offsetWidth, ch = cardEl.offsetHeight;
+  let x, y;
+  if (evt && evt.clientX) {
+    x = evt.clientX + m;
+    y = evt.clientY + m;
+  } else if (anchorEl) {
+    const r = anchorEl.getBoundingClientRect();
+    x = r.right + m;
+    y = r.top;
+  } else {
+    x = innerWidth / 2;
+    y = innerHeight / 2;
+  }
+  if (x + cw > innerWidth - pad) x = Math.max(pad, x - cw - m * 2);
+  if (y + ch > innerHeight - pad) y = Math.max(pad, innerHeight - pad - ch);
+  cardEl.style.left = x + "px";
+  cardEl.style.top = y + "px";
+}

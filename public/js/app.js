@@ -33,9 +33,14 @@ const els = {
   brand: $("#brand"),
   refresh: $("#refresh"),
   topStatus: $("#top-status"),
+  statSources: $("#stat-sources"),
+  statStories: $("#stat-stories"),
+  statUpdated: $("#stat-updated"),
+  envBtns: document.querySelectorAll(".env-btn"),
   catBar: $("#cat-bar"),
   catScroll: $("#cat-scroll"),
   hoverCard: $("#hover-card"),
+  peekCard: $("#peek-card"),
   treeHint: $("#tree-hint"),
   dock: document.querySelector(".left-dock"),
   dockCollapse: $("#dock-collapse"),
@@ -81,14 +86,22 @@ function setSkeleton(on) {
 }
 
 function loadBg() {
-  const d = { theme: "night", photo: null, dim: 0.35 };
+  // 默认 = DAY（Stage 3.4：首页是「现代新闻编辑室 + 数字生态树」，默认清晨纸面环境）
+  const d = { theme: "day", photo: null, dim: 0.35 };
   try {
     const o = JSON.parse(localStorage.getItem("nt.bg") || "null");
     if (o) {
-      d.theme = ["night", "dawn", "ocean"].includes(o.theme) ? o.theme : "night";
+      d.theme = ["day", "night", "dawn", "ocean"].includes(o.theme) ? o.theme : "day";
       d.photo = typeof o.photo === "string" && o.photo ? o.photo : null;
       d.dim = Number.isFinite(o.dim) ? Math.min(0.9, Math.max(0, o.dim)) : 0.35;
     }
+  } catch {}
+  // 允许用 URL 覆盖环境：?env=night / ?theme=day
+  // 用途：人工审查时可以直接给出「两个环境各一张」的链接，截图/对比不用改本地设置。
+  try {
+    const q = new URLSearchParams(location.search);
+    const t = q.get("env") || q.get("theme");
+    if (t && ["day", "night", "dawn", "ocean"].includes(t)) d.theme = t;
   } catch {}
   return d;
 }
@@ -131,10 +144,18 @@ function saveBg() {
 }
 
 // ---------------- 背景与外观 ----------------
+// Stage 3.5：DAY / NIGHT 是**全站颜色环境**，树/列表/热榜/详情只是布局模式。
+// data-env  = 环境（只有 day / night 两个值）→ 所有语义变量与组件规则都挂在它上面
+// data-theme = 具体预设（dawn / ocean 是 day / night 的变体，保留给设置面板）
+const ENV_OF = { day: "day", night: "night", dawn: "day", ocean: "night" };
+
 function applyBg() {
   const { theme, photo, dim } = state.bg;
   document.body.dataset.theme = theme;
+  document.body.dataset.env = ENV_OF[theme] || "day";
   els.bgThemeBtns.forEach((b) => b.classList.toggle("active", b.dataset.theme === theme));
+  // 底部 DAY/NIGHT 两段开关：dawn 归 DAY、ocean 归 NIGHT
+  els.envBtns.forEach((b) => b.classList.toggle("active", b.dataset.env === document.body.dataset.env));
   els.bg.style.setProperty("--dim", String(dim));
   els.bgDim.value = String(Math.round(dim * 100));
   els.dimVal.textContent = Math.round(dim * 100) + "%";
@@ -164,8 +185,15 @@ function setBgPhoto(src) {
 }
 
 // ---------------- 状态与数据 ----------------
+/** 顶部统计（§5：15 SOURCES / 209 STORIES / LAST UPDATED）—— 数字全部来自真实数据 */
 function setStatus() {
   const st = getState();
+  const srcCount = (state.data || []).length;
+  if (els.statSources) els.statSources.textContent = String(srcCount);
+  if (els.statStories) els.statStories.textContent = String(st.items.length);
+  if (els.statUpdated) els.statUpdated.textContent = st.items.length ? getUpdatedLabel() : "—";
+
+  // 细节（是否缓存 / 是否部分源不可用）收进 title，悬停可见，不占主视觉
   const parts = [];
   if (st.items.length) parts.push(`${st.items.length} 条`);
   else parts.push("暂无数据");
@@ -173,8 +201,8 @@ function setStatus() {
   else parts.push(`${getUpdatedLabel()} 更新`);
   if (st.fromCache) parts.push("缓存数据");
   if (st.stale) parts.push("缓存");
-  if (st.errors?.length) parts.push("部分源不可用");
-  els.topStatus.textContent = parts.join(" · ");
+  if (st.errors?.length) parts.push(`${st.errors.length} 个源不可用`);
+  els.topStatus.title = parts.join(" · ");
 }
 
 /** 当前视图 scope 下的全部条目（来源页只看该来源） */
@@ -191,6 +219,33 @@ function homeTreeModel() {
   return state.cat === "all" ? all : all.filter((e) => e.tags.includes(state.cat));
 }
 
+// ---------------- 首页新闻源预览卡 ----------------
+/** 某来源最新的 k 条真实新闻（按时间倒序，时间缺失时落到末尾，不编造顺序） */
+function latestOfSource(key, k = 3) {
+  const items = (state.data || []).filter((e) => e.key === key || e.name === key);
+  const flat = items.flatMap((e) =>
+    (e.sources || []).length
+      ? e.sources.flatMap((s) => s.items || [])
+      : (e.items || []));
+  const t = (x) => Number(x.time || x.publishedAt || 0);
+  return flat
+    .slice()
+    .sort((a, b) => t(b) - t(a) || String(a.id).localeCompare(String(b.id)))
+    .slice(0, k);
+}
+
+function fillPeek(key, count, items) {
+  views.fillPeekCard(els.peekCard, key, count, items);
+}
+
+function positionPeek(cardEl, el, evt) {
+  views.positionPeekCard(cardEl, el, evt);
+}
+
+function hidePeek() {
+  els.peekCard.classList.add("hidden");
+}
+
 // ---------------- 左侧面板折叠 ----------------
 function setDockState() {
   const off = !state.dockOpen;
@@ -203,6 +258,7 @@ function setDockState() {
 function showMainView() {
   els.detailView.classList.add("hidden");
   els.dock.classList.remove("hidden");
+  document.body.classList.remove("detail-mode");
   // 分类筛选属于首页维度；来源页只展示该来源的数据，避免出现空 scope
   const showCat = !state.source;
   els.catBar.classList.toggle("hidden", !showCat);
@@ -221,9 +277,12 @@ function showDetail() {
   els.detailView.classList.remove("hidden");
   els.dock.classList.add("hidden");
   els.dockReopen.classList.add("hidden");
-  els.catBar.classList.add("hidden");
+  // Stage 3.5：详情页保留底部控制条 —— 只收起「分类」（详情页没有分类筛选），
+  // 但 DAY/NIGHT 环境切换必须始终可达（DAY/NIGHT 是全站环境，不是某个视图的属性）。
+  els.catBar.classList.remove("hidden");
   els.sourceBar.classList.add("hidden");
   document.body.classList.add("no-cat");
+  document.body.classList.add("detail-mode");
   document.body.classList.remove("source-mode");
 }
 
@@ -248,13 +307,15 @@ function rebuildTree() {
   els.treeHint.textContent = model.length
     ? (state.source
         ? "拖动移动 · 滚轮/捏合缩放 · 悬停叶片看新闻 · 点击叶片进详情"
-        : "拖动移动 · 滚轮/捏合缩放 · 点击新闻源进入它的新闻树 · 点击叶片看详情")
+        : "拖动移动 · 滚轮/捏合缩放 · 悬停新闻源预览最新 3 条 · 点击进入它的新闻树")
     : warming ? "正在更新新闻……" : "新闻源暂时不可用，请稍后刷新。";
-  // 首页用「树冠模式」：少量粗主枝 + 来源节点分布在各自主枝上（Stage 3.2.1）
+  // 首页用「无叶片树冠」：只显示树干 + 主枝 + 新闻源节点。
+  //   新闻（叶片）不再在首页出现 —— 必须先点进某个新闻源，才展开它的新闻树。
+  //   这样首页的语义回到「有哪些新闻源」，而不是「一上来就是几百条标题」。
   // 来源页用「扇形模式」：单个来源在扇面内展开多条分枝（Stage 3.2 已验证，保持不变）
   tree.build(model, {
     showSourceLayer: Boolean(state.source),
-    mode: state.source ? "fan" : "crown"
+    mode: state.source ? "fan" : "crown-bare"
   });
 }
 
@@ -331,8 +392,9 @@ async function openDetail(id, { push = true } = {}) {
 function goMain(reload = false) {
   state.source = null;
   history.pushState({ view: "main" }, "", "/");
+  hidePeek();
   showMainView();
-  document.title = "新闻树 · NOW News Tree";
+  document.title = "新闻树 · News Tree";
   if (reload || !state.items.length) initData({ force: reload });
   else renderCurrent();
 }
@@ -355,9 +417,10 @@ function goSource(key, { push = true } = {}) {
     syncDock();
   }
   if (push) history.pushState({ view: "source", key: name }, "", sourceHref(name));
+  hidePeek();
   showMainView();
   renderCurrent();
-  document.title = `${name} · 独立新闻树 — NOW 新闻树`;
+  document.title = `${name} · 独立新闻树 — 新闻树`;
   requestAnimationFrame(() => requestAnimationFrame(() => tree.fit(true)));
   return true;
 }
@@ -411,12 +474,14 @@ function startWarmPoll() {
     if (tries > WARM_POLL_MAX || !getState().warming) return;
     await loadNews();
     const st = getState();
-    setStatus();
     if (st.items.length) {
       state.items = st.items;
       state.data = buildSourceModel(state.items);
+      setStatus();
       renderCatBar();
       renderCurrent();
+    } else {
+      setStatus();
     }
     if (st.warming) warmTimer = setTimeout(tick, WARM_POLL_INTERVAL_MS);
   };
@@ -425,9 +490,11 @@ function startWarmPoll() {
 
 async function initData({ force = false } = {}) {
   await loadNews({ force });
-  setStatus();
   state.items = getState().items;
+  // 注意顺序：setStatus 读的是 state.data（来源数），必须在它算完之后再调，
+  // 否则首屏会把「0 SOURCES」显示出来（实测截图确认过这个 bug）。
   state.data = buildSourceModel(state.items);
+  setStatus();
   renderCatBar();
   renderCurrent();
   // 服务端缓存为空或正在后台更新 → 轮询等待最新数据
@@ -471,10 +538,25 @@ function wire() {
   tree.onOpen = (item) => openDetail(item.id);
   // 点击新闻源节点 → 进入该来源的独立新闻树（不是打开某条新闻详情）
   tree.onOpenSource = (key) => goSource(key);
+  // 首页无叶片模式：悬停新闻源 → 预览该来源的最新几条真实新闻
+  // （key 为 null 表示已移出，隐藏预览卡）
+  tree.onPeekSource = (key, el, count, e) => {
+    if (!key) { hidePeek(); return; }
+    const items = latestOfSource(key, 3);
+    fillPeek(key, count, items);
+    els.peekCard.classList.remove("hidden");
+    positionPeek(els.peekCard, el, e);
+  };
   tree.attach();
   els.hoverCard.querySelector("#hc-open").addEventListener("click", () => {
     const id = els.hoverCard.dataset.id;
     if (id) openDetail(id);
+  });
+  // 预览卡里的标题也可点进详情（都是真实新闻，命中 openDetail 的同一条路径）
+  els.peekCard.querySelector("#pk-list").addEventListener("click", (e) => {
+    const li = e.target.closest?.(".pk-item");
+    const id = li?.dataset.id;
+    if (id) { hidePeek(); openDetail(id); }
   });
 
   // 显示方式（新闻树 / 新闻列表 / 热榜）
@@ -625,7 +707,7 @@ function wire() {
         showMainView();
         syncDock();
         renderCurrent();
-        document.title = `${name} · 独立新闻树 — NOW 新闻树`;
+        document.title = `${name} · 独立新闻树 — 新闻树`;
         requestAnimationFrame(() => requestAnimationFrame(() => tree.fit(true)));
         return;
       }
@@ -636,7 +718,7 @@ function wire() {
     showMainView();
     syncDock();
     renderCurrent();
-    document.title = "新闻树 · NOW News Tree";
+    document.title = "新闻树 · News Tree";
     if (state.mode === "tree") requestAnimationFrame(() => requestAnimationFrame(() => tree.fit(true)));
   });
 
@@ -656,6 +738,16 @@ function wire() {
   els.bgThemeBtns.forEach((b) => {
     b.addEventListener("click", () => {
       state.bg.theme = b.dataset.theme;
+      saveBg();
+      applyBg();
+    });
+  });
+
+  // DAY / NIGHT 环境切换（底部控制条）—— 与设置面板共用同一份 theme 状态
+  els.envBtns.forEach((b) => {
+    b.addEventListener("click", () => {
+      if (state.bg.theme === b.dataset.env) return;
+      state.bg.theme = b.dataset.env;
       saveBg();
       applyBg();
     });
@@ -700,6 +792,16 @@ function wire() {
   if (state.bg.photo) markPhotoReady();
   syncSortPills();
 
+  // 允许用 URL 直接指定**布局模式**（与颜色环境正交）：?mode=tree|list|board
+  // 用途：人工审查时给出「同一环境 × 三种布局」的直达链接（Stage 3.5 §10）。
+  // 注意：**不写回 localStorage** —— URL 参数只对本次加载生效，
+  // 否则审查完 ?mode=board 之后，下一次打开首页会莫名其妙停在热榜。
+  try {
+    const q = new URLSearchParams(location.search);
+    const m = q.get("mode");
+    if (m && ["tree", "list", "board"].includes(m)) state.mode = m;
+  } catch {}
+
   const route = parseRoute();
 
   // ① 先用 localStorage 里的上一批数据立即渲染，消除白屏
@@ -743,7 +845,7 @@ function wire() {
       showMainView();
       syncDock();
       renderCurrent();
-      document.title = `${name} · 独立新闻树 — NOW 新闻树`;
+      document.title = `${name} · 独立新闻树 — 新闻树`;
     } else {
       toast(`找不到新闻源「${route.key}」`, "warn");
     }

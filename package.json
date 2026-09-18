@@ -5,7 +5,12 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "review": "node scripts/review-server.mjs",
+    "review:refresh": "node scripts/review-server.mjs --refresh",
+    "selfcheck": "node scripts/build-selfcheck.mjs",
+    "shots": "node scripts/shots.mjs",
+    "test": "node --test test/source-navigation.test.mjs test/tree-layout.test.mjs test/tree-geometry-stage3.2.1.test.mjs test/tree-bare-geometry.test.mjs"
   },
   "engines": {
     "node": ">=20"
