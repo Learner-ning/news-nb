@@ -112,6 +112,37 @@ node scripts/shots.mjs                # 19 个场景
 **推送的是提交内容，不是工作区**，所以即便不处理也不会把坏版本推上去；但为避免本地校验失真，必须复原。
 丢失原因未查明（未发现 sparse-checkout / hooks / .gitattributes 等可疑配置），如实记录。
 
+### 3.3 实时数据链路复验（之前一直没做的一环）
+
+**为什么补这一步**：Stage 3.4/3.5 的全部截图都是打给 `review-server`（读 `.review/snapshot.json`
+**离线快照**）的。而生产走的是 `server.js` / `src/index.js` → `lib/news-core.mjs` **实时抓取**。
+也就是说，**「新前端 + 实时数据」这条生产真正会走的链路此前从未被验证过**。
+
+```
+node server.js                                   # 本地 3000，实时抓取
+curl localhost:3000/api/health
+  → {"ok":true,"itemCount":225,"updatedAt":"2026-09-18T14:09:32Z","warming":false,"errors":[]}
+
+SHOT_BASE=http://localhost:3000 node scripts/shots.mjs
+  → 19/19 场景「数据就绪」（含 hover→ Solidot ✓高亮 ✓预览卡:Solidot）
+```
+
+结论：新前端在**实时数据**（225 条、15 个真实来源、0 抓取错误）下渲染正常，
+与离线快照下的表现一致。证据：`.review/live-smoke/`（day-tree / day-list / day-board / night-list 四张）。
+
+### 3.4 列表载荷实测（上线收益的量化）
+
+同一条命令分别打生产与本地，比 `/api/news` 的原始字节数：
+
+```
+生产  https://newstree.dpdns.org/api/news   215 条  551 KB  单条 2623 B  25 字段
+本地  http://localhost:3000/api/news        225 条  157 KB  单条  716 B  21 字段
+→ 载荷 -71%，单条 -73%（正文 content 占整包约 64%，改为详情页按需取）
+```
+
+原始响应存档：`.review/prod-news.json`、`.review/live-news.json`。
+复跑：`curl -o out.json -w "%{size_download}\n" <接口地址>`。
+
 ---
 
 ## 4. 生产基线实测（上线**前**）
