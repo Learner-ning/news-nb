@@ -77,6 +77,41 @@ node scripts/build-selfcheck.mjs
 
 工作区在上线提交后**干净**（无未提交改动）。
 
+### 3.1 在上线提交上重跑浏览器验收（L1 实拍）
+
+```
+node scripts/review-server.mjs        # 本地 4173
+node scripts/shots.mjs                # 19 个场景
+→ 19/19 「数据就绪」，含 hover 场景（hover→ 量子位 ✓高亮 ✓预览卡:量子位）
+```
+
+同时得到一个**关于截图证据本身**的结论，值得记下来：
+
+- 19 张里有 **15 张与已归档版本逐字节一致**（列表 / 热榜 / 详情 / 来源页 / 移动端 / 变体预设 / 自定义背景图）；
+- 4 张**树视图**（`day-tree-1366` / `night-tree-1366` / `day-1920` / `night-1920`）与归档版本不同；
+  对 `day-tree-1366` **连续拍两次**，md5 也不同（`5cabb782…` vs `2f107bf7…`）；
+  单独复拍 `day-list-1366` 时也出现过一次不同。
+  → **截图不是逐字节可复现的**（入场动画相位 / 抗锯齿），因此
+  「同数据两次布局必须完全一致」这条铁律的**证据是单元测试（69/69）与 DOM 侧几何断言，不是截图像素**。
+  归档的那一套截图是**一次有效拍摄**，用于目视验收，不用于差分比对。
+
+### 3.2 一处工作区异常（已处理，不影响推送内容）
+
+切到 `main` 并快进合并之后，`git status` 报出两个**未暂存的删除**：
+
+```
+ D public/favicon.svg
+ D public/js/helpers.js
+```
+
+这两个文件**在 HEAD 里都完好**（`git ls-tree HEAD` 可查），只是工作区里丢了；
+`public/js/helpers.js` 被 5 个模块 `import`（`app.js` / `news-store.js` / `tree-layout.js` /
+`tree-view.js` / `views.js`），若照此状态本地起服务，前端会整体报错。
+
+已用 `git checkout -- public/favicon.svg public/js/helpers.js` 复原，工作区恢复干净。
+**推送的是提交内容，不是工作区**，所以即便不处理也不会把坏版本推上去；但为避免本地校验失真，必须复原。
+丢失原因未查明（未发现 sparse-checkout / hooks / .gitattributes 等可疑配置），如实记录。
+
 ---
 
 ## 4. 生产基线实测（上线**前**）
