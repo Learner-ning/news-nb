@@ -10,3 +10,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.zip
+
+# 本地 AI 工作区（会话记忆、临时产物），不进仓库
+.workbuddy-ai/
+.wrangler/

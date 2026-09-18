@@ -1,0 +1,1196 @@
+[
+ {
+  "env": "day",
+  "view": "首页树",
+  "rows": [
+   {
+    "sel": ".brand",
+    "label": "品牌 NEWS TREE",
+    "size": 17,
+    "weight": 700,
+    "large": false,
+    "ratio": 13.81,
+    "fg": "27,26,23",
+    "bg": "224,230,233"
+   },
+   {
+    "sel": ".brand .brand-sub",
+    "label": "品牌副标 新闻树",
+    "size": 11,
+    "weight": 500,
+    "large": false,
+    "ratio": 5.62,
+    "fg": "93,87,79",
+    "bg": "223,229,234"
+   },
+   {
+    "sel": ".top-stats .ts b",
+    "label": "统计数值",
+    "size": 15,
+    "weight": 600,
+    "large": false,
+    "ratio": 13.79,
+    "fg": "27,26,23",
+    "bg": "223,230,234"
+   },
+   {
+    "sel": ".top-stats .ts i",
+    "label": "统计标签",
+    "size": 10,
+    "weight": 600,
+    "large": false,
+    "ratio": 5.6,
+    "fg": "93,87,79",
+    "bg": "221,229,234"
+   },
+   {
+    "sel": ".cat-btn.active",
+    "label": "分类按钮（选中）",
+    "size": 13,
+    "weight": 600,
+    "large": false,
+    "ratio": 17.4,
+    "fg": "255,255,255",
+    "bg": "27,26,23"
+   },
+   {
+    "sel": ".cat-btn",
+    "label": "分类按钮（普通）",
+    "size": 13,
+    "weight": 600,
+    "large": false,
+    "ratio": 17.4,
+    "fg": "255,255,255",
+    "bg": "27,26,23"
+   },
+   {
+    "sel": ".env-btn.active",
+    "label": "DAY/NIGHT（选中）",
+    "size": 11,
+    "weight": 600,
+    "large": false,
+    "ratio": 15.29,
+    "fg": "243,240,233",
+    "bg": "27,26,23"
+   },
+   {
+    "sel": ".env-btn",
+    "label": "DAY/NIGHT（未选）",
+    "size": 11,
+    "weight": 600,
+    "large": false,
+    "ratio": 15.29,
+    "fg": "243,240,233",
+    "bg": "27,26,23"
+   },
+   {
+    "sel": ".dock-title",
+    "label": "左侧面板标题",
+    "size": 9,
+    "weight": 600,
+    "large": false,
+    "ratio": 6.6,
+    "fg": "93,87,79",
+    "bg": "246,246,245"
+   },
+   {
+    "sel": ".dock-btn.active",
+    "label": "左侧按钮（选中）",
+    "size": 12,
+    "weight": 500,
+    "large": false,
+    "ratio": 13.04,
+    "fg": "27,26,23",
+    "bg": "223,223,221"
+   },
+   {
+    "sel": ".dock-btn",
+    "label": "左侧按钮（普通）",
+    "size": 12,
+    "weight": 500,
+    "large": false,
+    "ratio": 13.04,
+    "fg": "27,26,23",
+    "bg": "223,223,221"
+   },
+   {
+    "sel": ".tree-hint",
+    "label": "底部提示",
+    "size": 11,
+    "weight": 400,
+    "large": false,
+    "ratio": 6.62,
+    "fg": "93,87,79",
+    "bg": "248,246,243"
+   },
+   {
+    "sel": ".sn-name",
+    "label": "来源名（树上）",
+    "size": 19,
+    "weight": 600,
+    "large": false,
+    "ratio": 16.23,
+    "fg": "27,26,23",
+    "bg": "248,247,243"
+   },
+   {
+    "sel": ".sn-count",
+    "label": "来源条数",
+    "size": 13,
+    "weight": 500,
+    "large": false,
+    "ratio": 4.78,
+    "fg": "115,109,100",
+    "bg": "248,247,243"
+   },
+   {
+    "sel": ".sn-abbr",
+    "label": "来源缩写（徽标内）",
+    "size": 17,
+    "weight": 700,
+    "large": false,
+    "ratio": 6.75,
+    "fg": "23,20,15",
+    "bg": "167,139,250"
+   },
+   {
+    "sel": ".cat-tag .ct-text",
+    "label": "分类标签",
+    "rect": {
+     "left": 118.87857818603516,
+     "top": 411.07470703125,
+     "width": 36.73436737060547,
+     "height": 13
+    },
+    "fg": "color(srgb 0.30902 0.260392 0.427451)",
+    "size": 18,
+    "weight": 700,
+    "isSvg": true,
+    "note": "无法解析前景色 color(srgb 0.30902 0.260392 0.427451)"
+   }
+  ]
+ },
+ {
+  "env": "day",
+  "view": "列表",
+  "rows": [
+   {
+    "sel": ".lv-title",
+    "label": "列表标题",
+    "size": 24,
+    "weight": 800,
+    "large": true,
+    "ratio": 13.61,
+    "fg": "27,26,23",
+    "bg": "218,229,238"
+   },
+   {
+    "sel": ".lv-meta",
+    "label": "列表元信息",
+    "size": 12,
+    "weight": 400,
+    "large": false,
+    "ratio": 5.54,
+    "fg": "93,87,79",
+    "bg": "217,228,238"
+   },
+   {
+    "sel": ".ss-name",
+    "label": "来源区域名",
+    "rect": {
+     "left": 162,
+     "top": 165,
+     "width": 51.609375,
+     "height": 22
+    },
+    "fg": "color(srgb 0.446275 0.376706 0.642118)",
+    "size": 17,
+    "weight": 800,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.446275 0.376706 0.642118)"
+   },
+   {
+    "sel": ".ss-count",
+    "label": "来源区域条数",
+    "size": 12,
+    "weight": 400,
+    "large": false,
+    "ratio": 7.14,
+    "fg": "93,87,79",
+    "bg": "255,255,255"
+   },
+   {
+    "sel": ".ss-tag",
+    "label": "来源分类标签",
+    "rect": {
+     "left": 1040.3125,
+     "top": 158,
+     "width": 40,
+     "height": 21
+    },
+    "fg": "color(srgb 0.391373 0.332392 0.553098)",
+    "size": 11,
+    "weight": 400,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.391373 0.332392 0.553098)"
+   },
+   {
+    "sel": ".ss-enter",
+    "label": "进入新闻树按钮",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 17.4,
+    "fg": "27,26,23",
+    "bg": "255,255,255"
+   },
+   {
+    "sel": ".nc-title",
+    "label": "卡片标题",
+    "size": 14,
+    "weight": 600,
+    "large": false,
+    "ratio": 17.4,
+    "fg": "27,26,23",
+    "bg": "255,255,255"
+   },
+   {
+    "sel": ".nc-src",
+    "label": "卡片来源",
+    "size": 11,
+    "weight": 600,
+    "large": false,
+    "ratio": 17.4,
+    "fg": "27,26,23",
+    "bg": "255,255,255"
+   },
+   {
+    "sel": ".nc-time",
+    "label": "卡片时间",
+    "size": 11,
+    "weight": 400,
+    "large": false,
+    "ratio": 5.12,
+    "fg": "115,109,100",
+    "bg": "255,255,255"
+   },
+   {
+    "sel": ".nc-heat",
+    "label": "卡片热度",
+    "rect": {
+     "left": 477.46875,
+     "top": 275.53125,
+     "width": 11.859375,
+     "height": 15
+    },
+    "fg": "color(srgb 0.105882 0.101961 0.0901961 / 0.62)",
+    "size": 11,
+    "weight": 400,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.105882 0.101961 0.0901961 / 0.62)"
+   },
+   {
+    "sel": ".nc-cat",
+    "label": "卡片分类",
+    "rect": {
+     "left": 176,
+     "top": 274.03125,
+     "width": 42,
+     "height": 18
+    },
+    "fg": "color(srgb 0.391373 0.332392 0.553098)",
+    "size": 10.5,
+    "weight": 700,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.391373 0.332392 0.553098)"
+   },
+   {
+    "sel": ".sort-pill.active",
+    "label": "排序（选中）",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 8.25,
+    "fg": "255,255,255",
+    "bg": "140,47,34"
+   },
+   {
+    "sel": ".sort-pill",
+    "label": "排序（普通）",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 8.25,
+    "fg": "255,255,255",
+    "bg": "140,47,34"
+   },
+   {
+    "sel": ".cat-btn.active",
+    "label": "分类按钮（选中）",
+    "size": 13,
+    "weight": 600,
+    "large": false,
+    "ratio": 17.4,
+    "fg": "255,255,255",
+    "bg": "27,26,23"
+   }
+  ]
+ },
+ {
+  "env": "day",
+  "view": "热榜",
+  "rows": [
+   {
+    "sel": ".lv-title",
+    "label": "热榜标题",
+    "offscreen": true,
+    "note": "不在首屏"
+   },
+   {
+    "sel": ".lv-meta",
+    "label": "热榜元信息",
+    "offscreen": true,
+    "note": "不在首屏"
+   },
+   {
+    "sel": ".hot-plat",
+    "label": "平台分组标题",
+    "rect": {
+     "left": 233,
+     "top": 177,
+     "width": 900,
+     "height": 21
+    },
+    "fg": "color(srgb 0.495843 0.174431 0.128157)",
+    "size": 14,
+    "weight": 800,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.495843 0.174431 0.128157)"
+   },
+   {
+    "sel": ".b-rank.top1",
+    "label": "排名 1",
+    "size": 24,
+    "weight": 900,
+    "large": true,
+    "ratio": 3.86,
+    "fg": "138,95,8",
+    "bg": "213,214,210"
+   },
+   {
+    "sel": ".b-rank.top2",
+    "label": "排名 2",
+    "size": 21,
+    "weight": 800,
+    "large": true,
+    "ratio": 4.49,
+    "fg": "92,98,108",
+    "bg": "217,221,223"
+   },
+   {
+    "sel": ".b-rank.top3",
+    "label": "排名 3",
+    "size": 19,
+    "weight": 800,
+    "large": true,
+    "ratio": 5.14,
+    "fg": "143,74,32",
+    "bg": "234,225,217"
+   },
+   {
+    "sel": ".board-row:nth-child(n+5) .b-rank",
+    "label": "排名 4+",
+    "size": 14,
+    "weight": 800,
+    "large": false,
+    "ratio": 7.14,
+    "fg": "93,87,79",
+    "bg": "255,255,255"
+   },
+   {
+    "sel": ".b-main .ri-title",
+    "label": "热榜标题行",
+    "size": 16,
+    "weight": 400,
+    "large": false,
+    "ratio": 13.11,
+    "fg": "27,26,23",
+    "bg": "214,225,234"
+   },
+   {
+    "sel": ".b-meta",
+    "label": "热榜元信息",
+    "size": 11,
+    "weight": 400,
+    "large": false,
+    "ratio": 5.44,
+    "fg": "93,87,79",
+    "bg": "217,226,234"
+   },
+   {
+    "sel": ".b-heat b",
+    "label": "热度数值",
+    "rect": {
+     "left": 1082,
+     "top": 234.1875,
+     "width": 32,
+     "height": 20.140625
+    },
+    "fg": "color(srgb 0.495843 0.174431 0.128157)",
+    "size": 13,
+    "weight": 700,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.495843 0.174431 0.128157)"
+   },
+   {
+    "sel": ".plat-chip.active",
+    "label": "平台筛选（选中）",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 8.25,
+    "fg": "255,255,255",
+    "bg": "140,47,34"
+   },
+   {
+    "sel": ".plat-chip",
+    "label": "平台筛选（普通）",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 8.25,
+    "fg": "255,255,255",
+    "bg": "140,47,34"
+   }
+  ]
+ },
+ {
+  "env": "day",
+  "view": "新闻详情",
+  "rows": [
+   {
+    "sel": ".back-btn",
+    "label": "返回按钮",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 15.89,
+    "fg": "27,26,23",
+    "bg": "241,245,249"
+   },
+   {
+    "sel": ".detail-tag",
+    "label": "详情分类标签",
+    "rect": {
+     "left": 303,
+     "top": 149,
+     "width": 760,
+     "height": 15
+    },
+    "fg": "color(srgb 0.495843 0.174431 0.128157)",
+    "size": 11,
+    "weight": 800,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.495843 0.174431 0.128157)"
+   },
+   {
+    "sel": ".detail-title",
+    "label": "详情标题",
+    "size": 38,
+    "weight": 800,
+    "large": true,
+    "ratio": 13.63,
+    "fg": "27,26,23",
+    "bg": "218,229,240"
+   },
+   {
+    "sel": ".detail-meta",
+    "label": "详情元信息",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 5.67,
+    "fg": "93,87,79",
+    "bg": "222,230,240"
+   },
+   {
+    "sel": ".detail-body",
+    "label": "详情正文",
+    "size": 15,
+    "weight": 400,
+    "large": false,
+    "ratio": 16.12,
+    "fg": "27,26,23",
+    "bg": "248,246,242"
+   },
+   {
+    "sel": ".btn-primary",
+    "label": "主按钮",
+    "size": 14,
+    "weight": 700,
+    "large": false,
+    "ratio": 8.25,
+    "fg": "255,255,255",
+    "bg": "140,47,34"
+   },
+   {
+    "sel": ".btn-secondary",
+    "label": "次按钮",
+    "size": 14,
+    "weight": 400,
+    "large": false,
+    "ratio": 13.35,
+    "fg": "27,26,23",
+    "bg": "230,225,214"
+   }
+  ]
+ },
+ {
+  "env": "day",
+  "view": "来源页",
+  "rows": [
+   {
+    "sel": ".sb-back",
+    "label": "返回全部新闻源",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 17.06,
+    "fg": "27,26,23",
+    "bg": "251,253,254"
+   },
+   {
+    "sel": ".sb-name",
+    "label": "来源名（顶栏）",
+    "rect": {
+     "left": 639.5859375,
+     "top": 85.5,
+     "width": 54.828125,
+     "height": 20
+    },
+    "fg": "color(srgb 0.424314 0.35898 0.60651)",
+    "size": 15,
+    "weight": 800,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.424314 0.35898 0.60651)"
+   },
+   {
+    "sel": ".sb-count",
+    "label": "来源条数（顶栏）",
+    "size": 12,
+    "weight": 400,
+    "large": false,
+    "ratio": 7,
+    "fg": "93,87,79",
+    "bg": "251,253,254"
+   },
+   {
+    "sel": ".sb-hint",
+    "label": "顶栏提示",
+    "size": 12,
+    "weight": 400,
+    "large": false,
+    "ratio": 7,
+    "fg": "93,87,79",
+    "bg": "251,253,254"
+   },
+   {
+    "sel": ".leaf-title",
+    "label": "新闻叶片标题",
+    "size": 13,
+    "weight": 700,
+    "large": false,
+    "ratio": 15.4,
+    "fg": "27,26,23",
+    "bg": "243,239,254"
+   }
+  ]
+ },
+ {
+  "env": "night",
+  "view": "首页树",
+  "rows": [
+   {
+    "sel": ".brand",
+    "label": "品牌 NEWS TREE",
+    "size": 17,
+    "weight": 700,
+    "large": false,
+    "ratio": 16.67,
+    "fg": "233,237,245",
+    "bg": "8,12,21"
+   },
+   {
+    "sel": ".brand .brand-sub",
+    "label": "品牌副标 新闻树",
+    "size": 11,
+    "weight": 500,
+    "large": false,
+    "ratio": 9.19,
+    "fg": "168,179,198",
+    "bg": "8,13,23"
+   },
+   {
+    "sel": ".top-stats .ts b",
+    "label": "统计数值",
+    "size": 15,
+    "weight": 600,
+    "large": false,
+    "ratio": 16.21,
+    "fg": "233,237,245",
+    "bg": "10,16,28"
+   },
+   {
+    "sel": ".top-stats .ts i",
+    "label": "统计标签",
+    "size": 10,
+    "weight": 600,
+    "large": false,
+    "ratio": 9.13,
+    "fg": "168,179,198",
+    "bg": "8,14,25"
+   },
+   {
+    "sel": ".cat-btn.active",
+    "label": "分类按钮（选中）",
+    "size": 13,
+    "weight": 600,
+    "large": false,
+    "ratio": 16.15,
+    "fg": "10,16,32",
+    "bg": "233,237,245"
+   },
+   {
+    "sel": ".cat-btn",
+    "label": "分类按钮（普通）",
+    "size": 13,
+    "weight": 600,
+    "large": false,
+    "ratio": 16.15,
+    "fg": "10,16,32",
+    "bg": "233,237,245"
+   },
+   {
+    "sel": ".env-btn.active",
+    "label": "DAY/NIGHT（选中）",
+    "size": 11,
+    "weight": 600,
+    "large": false,
+    "ratio": 16.15,
+    "fg": "10,16,32",
+    "bg": "233,237,245"
+   },
+   {
+    "sel": ".env-btn",
+    "label": "DAY/NIGHT（未选）",
+    "size": 11,
+    "weight": 600,
+    "large": false,
+    "ratio": 8.33,
+    "fg": "168,179,198",
+    "bg": "21,25,32"
+   },
+   {
+    "sel": ".dock-title",
+    "label": "左侧面板标题",
+    "size": 9,
+    "weight": 600,
+    "large": false,
+    "ratio": 8.31,
+    "fg": "168,179,198",
+    "bg": "15,25,43"
+   },
+   {
+    "sel": ".dock-btn.active",
+    "label": "左侧按钮（选中）",
+    "size": 12,
+    "weight": 500,
+    "large": false,
+    "ratio": 12.58,
+    "fg": "233,237,245",
+    "bg": "34,40,53"
+   },
+   {
+    "sel": ".dock-btn",
+    "label": "左侧按钮（普通）",
+    "size": 12,
+    "weight": 500,
+    "large": false,
+    "ratio": 12.58,
+    "fg": "233,237,245",
+    "bg": "34,40,53"
+   },
+   {
+    "sel": ".tree-hint",
+    "label": "底部提示",
+    "size": 11,
+    "weight": 400,
+    "large": false,
+    "ratio": 9.13,
+    "fg": "168,179,198",
+    "bg": "9,14,24"
+   },
+   {
+    "sel": ".sn-name",
+    "label": "来源名（树上）",
+    "size": 19,
+    "weight": 600,
+    "large": false,
+    "ratio": 15.16,
+    "fg": "223,230,242",
+    "bg": "9,16,30"
+   },
+   {
+    "sel": ".sn-count",
+    "label": "来源条数",
+    "size": 13,
+    "weight": 500,
+    "large": false,
+    "ratio": 6.26,
+    "fg": "138,148,166",
+    "bg": "9,15,29"
+   },
+   {
+    "sel": ".sn-abbr",
+    "label": "来源缩写（徽标内）",
+    "size": 17,
+    "weight": 700,
+    "large": false,
+    "ratio": 7.05,
+    "fg": "11,15,22",
+    "bg": "167,139,250"
+   },
+   {
+    "sel": ".cat-tag .ct-text",
+    "label": "分类标签",
+    "rect": {
+     "left": 118.87857818603516,
+     "top": 411.07470703125,
+     "width": 36.73436737060547,
+     "height": 13
+    },
+    "fg": "color(srgb 0.786039 0.717961 0.987843)",
+    "size": 18,
+    "weight": 700,
+    "isSvg": true,
+    "note": "无法解析前景色 color(srgb 0.786039 0.717961 0.987843)"
+   }
+  ]
+ },
+ {
+  "env": "night",
+  "view": "列表",
+  "rows": [
+   {
+    "sel": ".lv-title",
+    "label": "列表标题",
+    "size": 24,
+    "weight": 800,
+    "large": true,
+    "ratio": 16.56,
+    "fg": "233,237,245",
+    "bg": "7,13,25"
+   },
+   {
+    "sel": ".lv-meta",
+    "label": "列表元信息",
+    "size": 12,
+    "weight": 400,
+    "large": false,
+    "ratio": 8.7,
+    "fg": "168,179,198",
+    "bg": "12,20,36"
+   },
+   {
+    "sel": ".ss-name",
+    "label": "来源区域名",
+    "rect": {
+     "left": 162,
+     "top": 165,
+     "width": 51.609375,
+     "height": 22
+    },
+    "fg": "color(srgb 0.786039 0.717961 0.987843)",
+    "size": 17,
+    "weight": 800,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.786039 0.717961 0.987843)"
+   },
+   {
+    "sel": ".ss-count",
+    "label": "来源区域条数",
+    "size": 12,
+    "weight": 400,
+    "large": false,
+    "ratio": 8.69,
+    "fg": "168,179,198",
+    "bg": "13,20,36"
+   },
+   {
+    "sel": ".ss-tag",
+    "label": "来源分类标签",
+    "rect": {
+     "left": 1040.3125,
+     "top": 158,
+     "width": 40,
+     "height": 21
+    },
+    "fg": "color(srgb 0.730824 0.645176 0.984706)",
+    "size": 11,
+    "weight": 400,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.730824 0.645176 0.984706)"
+   },
+   {
+    "sel": ".ss-enter",
+    "label": "进入新闻树按钮",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 15.66,
+    "fg": "233,237,245",
+    "bg": "13,20,36"
+   },
+   {
+    "sel": ".nc-title",
+    "label": "卡片标题",
+    "size": 14,
+    "weight": 600,
+    "large": false,
+    "ratio": 14.82,
+    "fg": "233,237,245",
+    "bg": "17,26,44"
+   },
+   {
+    "sel": ".nc-src",
+    "label": "卡片来源",
+    "size": 11,
+    "weight": 600,
+    "large": false,
+    "ratio": 14.82,
+    "fg": "233,237,245",
+    "bg": "17,26,44"
+   },
+   {
+    "sel": ".nc-time",
+    "label": "卡片时间",
+    "size": 11,
+    "weight": 400,
+    "large": false,
+    "ratio": 8.22,
+    "fg": "168,179,198",
+    "bg": "17,26,44"
+   },
+   {
+    "sel": ".nc-heat",
+    "label": "卡片热度",
+    "rect": {
+     "left": 477.46875,
+     "top": 275.53125,
+     "width": 11.859375,
+     "height": 15
+    },
+    "fg": "color(srgb 0.913725 0.929412 0.960784 / 0.62)",
+    "size": 11,
+    "weight": 400,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.913725 0.929412 0.960784 / 0.62)"
+   },
+   {
+    "sel": ".nc-cat",
+    "label": "卡片分类",
+    "size": 11,
+    "weight": 700,
+    "large": false,
+    "ratio": 6.39,
+    "fg": "167,139,250",
+    "bg": "17,26,44"
+   },
+   {
+    "sel": ".sort-pill.active",
+    "label": "排序（选中）",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 7.89,
+    "fg": "6,16,31",
+    "bg": "110,168,254"
+   },
+   {
+    "sel": ".sort-pill",
+    "label": "排序（普通）",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 7.89,
+    "fg": "6,16,31",
+    "bg": "110,168,254"
+   },
+   {
+    "sel": ".cat-btn.active",
+    "label": "分类按钮（选中）",
+    "size": 13,
+    "weight": 600,
+    "large": false,
+    "ratio": 16.15,
+    "fg": "10,16,32",
+    "bg": "233,237,245"
+   }
+  ]
+ },
+ {
+  "env": "night",
+  "view": "热榜",
+  "rows": [
+   {
+    "sel": ".lv-title",
+    "label": "热榜标题",
+    "offscreen": true,
+    "note": "不在首屏"
+   },
+   {
+    "sel": ".lv-meta",
+    "label": "热榜元信息",
+    "offscreen": true,
+    "note": "不在首屏"
+   },
+   {
+    "sel": ".hot-plat",
+    "label": "平台分组标题",
+    "size": 14,
+    "weight": 800,
+    "large": false,
+    "ratio": 7.01,
+    "fg": "251,113,133",
+    "bg": "10,17,31"
+   },
+   {
+    "sel": ".b-rank.top1",
+    "label": "排名 1",
+    "size": 24,
+    "weight": 900,
+    "large": true,
+    "ratio": 10.35,
+    "fg": "255,209,102",
+    "bg": "40,39,37"
+   },
+   {
+    "sel": ".b-rank.top2",
+    "label": "排名 2",
+    "size": 21,
+    "weight": 800,
+    "large": true,
+    "ratio": 11.88,
+    "fg": "223,231,245",
+    "bg": "33,40,54"
+   },
+   {
+    "sel": ".b-rank.top3",
+    "label": "排名 3",
+    "size": 19,
+    "weight": 800,
+    "large": true,
+    "ratio": 7.89,
+    "fg": "238,163,111",
+    "bg": "34,30,37"
+   },
+   {
+    "sel": ".board-row:nth-child(n+5) .b-rank",
+    "label": "排名 4+",
+    "size": 14,
+    "weight": 800,
+    "large": false,
+    "ratio": 8.22,
+    "fg": "168,179,198",
+    "bg": "17,26,44"
+   },
+   {
+    "sel": ".b-main .ri-title",
+    "label": "热榜标题行",
+    "size": 16,
+    "weight": 400,
+    "large": false,
+    "ratio": 14.53,
+    "fg": "233,237,245",
+    "bg": "25,28,35"
+   },
+   {
+    "sel": ".b-meta",
+    "label": "热榜元信息",
+    "size": 11,
+    "weight": 400,
+    "large": false,
+    "ratio": 8.75,
+    "fg": "168,179,198",
+    "bg": "15,19,32"
+   },
+   {
+    "sel": ".b-heat b",
+    "label": "热度数值",
+    "size": 13,
+    "weight": 700,
+    "large": false,
+    "ratio": 7.98,
+    "fg": "110,168,254",
+    "bg": "8,14,28"
+   },
+   {
+    "sel": ".plat-chip.active",
+    "label": "平台筛选（选中）",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 7.89,
+    "fg": "6,16,31",
+    "bg": "110,168,254"
+   },
+   {
+    "sel": ".plat-chip",
+    "label": "平台筛选（普通）",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 7.89,
+    "fg": "6,16,31",
+    "bg": "110,168,254"
+   }
+  ]
+ },
+ {
+  "env": "night",
+  "view": "新闻详情",
+  "rows": [
+   {
+    "sel": ".back-btn",
+    "label": "返回按钮",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 16.36,
+    "fg": "233,237,245",
+    "bg": "9,15,25"
+   },
+   {
+    "sel": ".detail-tag",
+    "label": "详情分类标签",
+    "size": 11,
+    "weight": 800,
+    "large": false,
+    "ratio": 7.68,
+    "fg": "110,168,254",
+    "bg": "11,19,35"
+   },
+   {
+    "sel": ".detail-title",
+    "label": "详情标题",
+    "size": 38,
+    "weight": 800,
+    "large": true,
+    "ratio": 16.1,
+    "fg": "233,237,245",
+    "bg": "9,17,31"
+   },
+   {
+    "sel": ".detail-meta",
+    "label": "详情元信息",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 9.04,
+    "fg": "168,179,198",
+    "bg": "9,15,29"
+   },
+   {
+    "sel": ".detail-body",
+    "label": "详情正文",
+    "size": 15,
+    "weight": 400,
+    "large": false,
+    "ratio": 16.64,
+    "fg": "233,237,245",
+    "bg": "7,12,25"
+   },
+   {
+    "sel": ".btn-primary",
+    "label": "主按钮",
+    "size": 14,
+    "weight": 700,
+    "large": false,
+    "ratio": 7.89,
+    "fg": "6,16,31",
+    "bg": "110,168,254"
+   },
+   {
+    "sel": ".btn-secondary",
+    "label": "次按钮",
+    "size": 14,
+    "weight": 400,
+    "large": false,
+    "ratio": 16.96,
+    "fg": "233,237,245",
+    "bg": "6,9,18"
+   }
+  ]
+ },
+ {
+  "env": "night",
+  "view": "来源页",
+  "rows": [
+   {
+    "sel": ".sb-back",
+    "label": "返回全部新闻源",
+    "size": 13,
+    "weight": 400,
+    "large": false,
+    "ratio": 16.46,
+    "fg": "233,237,245",
+    "bg": "9,14,24"
+   },
+   {
+    "sel": ".sb-name",
+    "label": "来源名（顶栏）",
+    "rect": {
+     "left": 639.5859375,
+     "top": 85.5,
+     "width": 54.828125,
+     "height": 20
+    },
+    "fg": "color(srgb 0.758431 0.681569 0.986275)",
+    "size": 15,
+    "weight": 800,
+    "isSvg": false,
+    "note": "无法解析前景色 color(srgb 0.758431 0.681569 0.986275)"
+   },
+   {
+    "sel": ".sb-count",
+    "label": "来源条数（顶栏）",
+    "size": 12,
+    "weight": 400,
+    "large": false,
+    "ratio": 9.13,
+    "fg": "168,179,198",
+    "bg": "9,14,24"
+   },
+   {
+    "sel": ".sb-hint",
+    "label": "顶栏提示",
+    "size": 12,
+    "weight": 400,
+    "large": false,
+    "ratio": 9.13,
+    "fg": "168,179,198",
+    "bg": "9,14,24"
+   },
+   {
+    "sel": ".leaf-title",
+    "label": "新闻叶片标题",
+    "size": 13,
+    "weight": 700,
+    "large": false,
+    "ratio": 13.58,
+    "fg": "242,246,255",
+    "bg": "31,38,72"
+   }
+  ]
+ }
+]
