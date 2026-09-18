@@ -1,0 +1,20 @@
+
+生产上线校验：https://newstree.dpdns.org
+------------------------------------------------------------------------
+PASS    首页 HTTP 200                               status=200
+FAIL    首页带 data-env（Stage 3.5 环境属性）              未命中：仍是旧版首页
+FAIL    布局引擎 tree-layout.js 已上线                   status=404 size=9
+FAIL    style.css 含语义变量 --bg-card                 未命中：仍是旧版样式
+FAIL    style.css 含 body[data-env="night"]        未命中：仍是旧版样式
+PASS    /api/health 返回 ok                         itemCount=215
+FAIL    /api/health 带 warming 字段（新 Worker）        无 warming 字段：仍是旧 Worker
+PASS    /api/news 状态 200/202                      status=200 items=215
+FAIL    列表条目已瘦身（不含正文 content）                     仍带 content：旧 API
+PASS    列表条目含 heatScore（真实热度）                     heatScore=0.39
+PASS    详情接口按需返回完整条目（含 content）                   status=200 contentLen=364
+FAIL    SPA 深链 /detail/:id 回落首页                   status=404
+FAIL    refresh 节流生效（60s 内不重复抓取）                  第一次 throttled=undefined 第二次 throttled=undefined
+------------------------------------------------------------------------
+PASS 5 / FAIL 8 / UNKNOWN 0
+
+结论：生产环境**尚未**跑到目标版本（或存在回归），见上面 FAIL 项。
