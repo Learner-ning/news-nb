@@ -390,29 +390,56 @@ function syncSortPills() {
   });
 }
 
-// ---------------- 详情（沿用现有跳转逻辑） ----------------
+// ---------------- 详情 ----------------
+// 生产是多 isolate：冷实例上 /api/news/:id 会返回 503「数据正在准备中」
+// （实测连续 8 次里 6 次 503）。若「先等正文再渲染」，用户点叶片就会看到「加载失败」，
+// 等于需求 3「点击叶片要正确显示对应新闻」在冷实例上做不到。
+// 因此改为：**先用列表接口已下发的字段立即渲染**（title/tag/source/time/summary），
+// 正文再按需拉取；遇到 503 warming 自动重试，拿到正文后原地升级。
+// 地址栏也立刻同步 —— 否则会出现「内容已切到详情、URL 还停在来源页」的错位。
+const DETAIL_RETRY_MAX = 6;
+const DETAIL_RETRY_DELAY_MS = 2500;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** 拉取详情正文；服务端 warming(503) 时重试，最终仍失败返回 null（不抛异常） */
+async function fetchDetailBody(id) {
+  for (let i = 0; i < DETAIL_RETRY_MAX; i++) {
+    try {
+      const r = await fetch("/api/news/" + encodeURIComponent(id), { cache: "no-store" });
+      if (r.ok) return await r.json();
+      // 只有「数据正在准备」值得重试；404 之类直接放弃
+      if (r.status !== 503) return null;
+    } catch { /* 网络抖动也重试 */ }
+    if (i < DETAIL_RETRY_MAX - 1) await sleep(DETAIL_RETRY_DELAY_MS);
+  }
+  return null;
+}
+
 async function openDetail(id, { push = true } = {}) {
   if (!id) return;
   showDetail();
-  views.showDetailSkeleton(els.detailContent);
-  document.title = "加载中 — 新闻树";
   let item = state.items.find((x) => x.id === id) || null;
-  // 列表接口不再返回正文：条目缺少 content 时按需请求详情接口
-  if (!item || !item.content) {
-    try {
-      const r = await fetch("/api/news/" + encodeURIComponent(id), { cache: "no-store" });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      const full = await r.json();
-      item = item ? { ...item, ...full } : full;
-    } catch (e) {
-      views.showDetailError(els.detailContent, () => goMain(true), e.message || "请求失败");
-      document.title = "加载失败 — 新闻树";
-      return;
-    }
-  }
-  views.renderDetail(els.detailContent, item);
-  document.title = `${item.title} — 新闻树`;
+  // 1) 先用本地已有字段立即出内容（冷实例下也不会「点了半天是加载失败」）
+  if (item) views.renderDetail(els.detailContent, item);
+  else views.showDetailSkeleton(els.detailContent);
+  document.title = item ? `${item.title} — 新闻树` : "加载中 — 新闻树";
+  // 2) 地址栏立刻同步
   if (push) history.pushState({ view: "detail", id }, "", `/detail/${id}`);
+  // 3) 已有正文就不必再请求
+  if (item && item.content) return;
+  // 4) 按需拉正文（带重试），成功后原地升级
+  const full = await fetchDetailBody(id);
+  if (full) {
+    item = item ? { ...item, ...full } : full;
+    views.renderDetail(els.detailContent, item);
+    document.title = `${item.title} — 新闻树`;
+    return;
+  }
+  // 5) 连本地条目都没有、正文也拿不到 → 才显示错误
+  if (!item) {
+    views.showDetailError(els.detailContent, () => goMain(true), "正文暂时取不到，请稍后重试");
+    document.title = "加载失败 — 新闻树";
+  }
 }
 
 function goMain(reload = false) {
