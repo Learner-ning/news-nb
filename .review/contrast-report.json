@@ -129,9 +129,9 @@
     "size": 19,
     "weight": 600,
     "large": false,
-    "ratio": 16.23,
+    "ratio": 15.83,
     "fg": "27,26,23",
-    "bg": "248,247,243"
+    "bg": "246,244,239"
    },
    {
     "sel": ".sn-count",
@@ -139,9 +139,9 @@
     "size": 13,
     "weight": 500,
     "large": false,
-    "ratio": 4.78,
+    "ratio": 4.66,
     "fg": "115,109,100",
-    "bg": "248,247,243"
+    "bg": "246,244,239"
    },
    {
     "sel": ".sn-abbr",
@@ -157,10 +157,10 @@
     "sel": ".cat-tag .ct-text",
     "label": "分类标签",
     "rect": {
-     "left": 118.87857818603516,
-     "top": 411.07470703125,
-     "width": 36.73436737060547,
-     "height": 13
+     "left": 119.81090545654297,
+     "top": 421.1496276855469,
+     "width": 22.98657989501953,
+     "height": 7
     },
     "fg": "color(srgb 0.30902 0.260392 0.427451)",
     "size": 18,
@@ -197,112 +197,56 @@
    {
     "sel": ".ss-name",
     "label": "来源区域名",
-    "rect": {
-     "left": 162,
-     "top": 165,
-     "width": 51.609375,
-     "height": 22
-    },
-    "fg": "color(srgb 0.446275 0.376706 0.642118)",
-    "size": 17,
-    "weight": 800,
-    "isSvg": false,
-    "note": "无法解析前景色 color(srgb 0.446275 0.376706 0.642118)"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".ss-count",
     "label": "来源区域条数",
-    "size": 12,
-    "weight": 400,
-    "large": false,
-    "ratio": 7.14,
-    "fg": "93,87,79",
-    "bg": "255,255,255"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".ss-tag",
     "label": "来源分类标签",
-    "rect": {
-     "left": 1040.3125,
-     "top": 158,
-     "width": 40,
-     "height": 21
-    },
-    "fg": "color(srgb 0.391373 0.332392 0.553098)",
-    "size": 11,
-    "weight": 400,
-    "isSvg": false,
-    "note": "无法解析前景色 color(srgb 0.391373 0.332392 0.553098)"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".ss-enter",
     "label": "进入新闻树按钮",
-    "size": 13,
-    "weight": 400,
-    "large": false,
-    "ratio": 17.4,
-    "fg": "27,26,23",
-    "bg": "255,255,255"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".nc-title",
     "label": "卡片标题",
-    "size": 14,
-    "weight": 600,
-    "large": false,
-    "ratio": 17.4,
-    "fg": "27,26,23",
-    "bg": "255,255,255"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".nc-src",
     "label": "卡片来源",
-    "size": 11,
-    "weight": 600,
-    "large": false,
-    "ratio": 17.4,
-    "fg": "27,26,23",
-    "bg": "255,255,255"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".nc-time",
     "label": "卡片时间",
-    "size": 11,
-    "weight": 400,
-    "large": false,
-    "ratio": 5.12,
-    "fg": "115,109,100",
-    "bg": "255,255,255"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".nc-heat",
     "label": "卡片热度",
-    "rect": {
-     "left": 477.46875,
-     "top": 275.53125,
-     "width": 11.859375,
-     "height": 15
-    },
-    "fg": "color(srgb 0.105882 0.101961 0.0901961 / 0.62)",
-    "size": 11,
-    "weight": 400,
-    "isSvg": false,
-    "note": "无法解析前景色 color(srgb 0.105882 0.101961 0.0901961 / 0.62)"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".nc-cat",
     "label": "卡片分类",
-    "rect": {
-     "left": 176,
-     "top": 274.03125,
-     "width": 42,
-     "height": 18
-    },
-    "fg": "color(srgb 0.391373 0.332392 0.553098)",
-    "size": 10.5,
-    "weight": 700,
-    "isSvg": false,
-    "note": "无法解析前景色 color(srgb 0.391373 0.332392 0.553098)"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".sort-pill.active",
@@ -320,9 +264,9 @@
     "size": 13,
     "weight": 400,
     "large": false,
-    "ratio": 8.25,
-    "fg": "255,255,255",
-    "bg": "140,47,34"
+    "ratio": 5.03,
+    "fg": "93,87,79",
+    "bg": "207,218,227"
    },
    {
     "sel": ".cat-btn.active",
@@ -458,9 +402,9 @@
     "size": 13,
     "weight": 400,
     "large": false,
-    "ratio": 8.25,
-    "fg": "255,255,255",
-    "bg": "140,47,34"
+    "ratio": 5.14,
+    "fg": "93,87,79",
+    "bg": "211,220,228"
    }
   ]
  },
@@ -539,9 +483,9 @@
     "size": 14,
     "weight": 400,
     "large": false,
-    "ratio": 13.35,
+    "ratio": 12.97,
     "fg": "27,26,23",
-    "bg": "230,225,214"
+    "bg": "227,222,210"
    }
   ]
  },
@@ -563,14 +507,14 @@
     "sel": ".sb-name",
     "label": "来源名（顶栏）",
     "rect": {
-     "left": 639.5859375,
-     "top": 85.5,
-     "width": 54.828125,
+     "left": 671,
+     "top": 78,
+     "width": 51.453125,
      "height": 20
     },
     "fg": "color(srgb 0.424314 0.35898 0.60651)",
     "size": 15,
-    "weight": 800,
+    "weight": 700,
     "isSvg": false,
     "note": "无法解析前景色 color(srgb 0.424314 0.35898 0.60651)"
    },
@@ -580,9 +524,9 @@
     "size": 12,
     "weight": 400,
     "large": false,
-    "ratio": 7,
+    "ratio": 7.01,
     "fg": "93,87,79",
-    "bg": "251,253,254"
+    "bg": "252,253,254"
    },
    {
     "sel": ".sb-hint",
@@ -736,9 +680,9 @@
     "size": 19,
     "weight": 600,
     "large": false,
-    "ratio": 15.16,
+    "ratio": 15.23,
     "fg": "223,230,242",
-    "bg": "9,16,30"
+    "bg": "9,15,30"
    },
    {
     "sel": ".sn-count",
@@ -746,9 +690,9 @@
     "size": 13,
     "weight": 500,
     "large": false,
-    "ratio": 6.26,
+    "ratio": 6.24,
     "fg": "138,148,166",
-    "bg": "9,15,29"
+    "bg": "9,15,31"
    },
    {
     "sel": ".sn-abbr",
@@ -764,10 +708,10 @@
     "sel": ".cat-tag .ct-text",
     "label": "分类标签",
     "rect": {
-     "left": 118.87857818603516,
-     "top": 411.07470703125,
-     "width": 36.73436737060547,
-     "height": 13
+     "left": 119.81090545654297,
+     "top": 421.1496276855469,
+     "width": 22.98657989501953,
+     "height": 7
     },
     "fg": "color(srgb 0.786039 0.717961 0.987843)",
     "size": 18,
@@ -797,114 +741,63 @@
     "size": 12,
     "weight": 400,
     "large": false,
-    "ratio": 8.7,
+    "ratio": 8.75,
     "fg": "168,179,198",
-    "bg": "12,20,36"
+    "bg": "13,19,35"
    },
    {
     "sel": ".ss-name",
     "label": "来源区域名",
-    "rect": {
-     "left": 162,
-     "top": 165,
-     "width": 51.609375,
-     "height": 22
-    },
-    "fg": "color(srgb 0.786039 0.717961 0.987843)",
-    "size": 17,
-    "weight": 800,
-    "isSvg": false,
-    "note": "无法解析前景色 color(srgb 0.786039 0.717961 0.987843)"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".ss-count",
     "label": "来源区域条数",
-    "size": 12,
-    "weight": 400,
-    "large": false,
-    "ratio": 8.69,
-    "fg": "168,179,198",
-    "bg": "13,20,36"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".ss-tag",
     "label": "来源分类标签",
-    "rect": {
-     "left": 1040.3125,
-     "top": 158,
-     "width": 40,
-     "height": 21
-    },
-    "fg": "color(srgb 0.730824 0.645176 0.984706)",
-    "size": 11,
-    "weight": 400,
-    "isSvg": false,
-    "note": "无法解析前景色 color(srgb 0.730824 0.645176 0.984706)"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".ss-enter",
     "label": "进入新闻树按钮",
-    "size": 13,
-    "weight": 400,
-    "large": false,
-    "ratio": 15.66,
-    "fg": "233,237,245",
-    "bg": "13,20,36"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".nc-title",
     "label": "卡片标题",
-    "size": 14,
-    "weight": 600,
-    "large": false,
-    "ratio": 14.82,
-    "fg": "233,237,245",
-    "bg": "17,26,44"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".nc-src",
     "label": "卡片来源",
-    "size": 11,
-    "weight": 600,
-    "large": false,
-    "ratio": 14.82,
-    "fg": "233,237,245",
-    "bg": "17,26,44"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".nc-time",
     "label": "卡片时间",
-    "size": 11,
-    "weight": 400,
-    "large": false,
-    "ratio": 8.22,
-    "fg": "168,179,198",
-    "bg": "17,26,44"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".nc-heat",
     "label": "卡片热度",
-    "rect": {
-     "left": 477.46875,
-     "top": 275.53125,
-     "width": 11.859375,
-     "height": 15
-    },
-    "fg": "color(srgb 0.913725 0.929412 0.960784 / 0.62)",
-    "size": 11,
-    "weight": 400,
-    "isSvg": false,
-    "note": "无法解析前景色 color(srgb 0.913725 0.929412 0.960784 / 0.62)"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".nc-cat",
     "label": "卡片分类",
-    "size": 11,
-    "weight": 700,
-    "large": false,
-    "ratio": 6.39,
-    "fg": "167,139,250",
-    "bg": "17,26,44"
+    "missing": true,
+    "note": "元素不存在"
    },
    {
     "sel": ".sort-pill.active",
@@ -922,9 +815,9 @@
     "size": 13,
     "weight": 400,
     "large": false,
-    "ratio": 7.89,
-    "fg": "6,16,31",
-    "bg": "110,168,254"
+    "ratio": 7.64,
+    "fg": "168,179,198",
+    "bg": "26,33,45"
    },
    {
     "sel": ".cat-btn.active",
@@ -1051,8 +944,8 @@
     "weight": 400,
     "large": false,
     "ratio": 7.89,
-    "fg": "6,16,31",
-    "bg": "110,168,254"
+    "fg": "168,179,198",
+    "bg": "24,30,42"
    }
   ]
  },
@@ -1106,9 +999,9 @@
     "size": 15,
     "weight": 400,
     "large": false,
-    "ratio": 16.64,
+    "ratio": 16.72,
     "fg": "233,237,245",
-    "bg": "7,12,25"
+    "bg": "7,11,24"
    },
    {
     "sel": ".btn-primary",
@@ -1126,9 +1019,9 @@
     "size": 14,
     "weight": 400,
     "large": false,
-    "ratio": 16.96,
+    "ratio": 17.3,
     "fg": "233,237,245",
-    "bg": "6,9,18"
+    "bg": "2,6,13"
    }
   ]
  },
@@ -1149,17 +1042,12 @@
    {
     "sel": ".sb-name",
     "label": "来源名（顶栏）",
-    "rect": {
-     "left": 639.5859375,
-     "top": 85.5,
-     "width": 54.828125,
-     "height": 20
-    },
-    "fg": "color(srgb 0.758431 0.681569 0.986275)",
     "size": 15,
-    "weight": 800,
-    "isSvg": false,
-    "note": "无法解析前景色 color(srgb 0.758431 0.681569 0.986275)"
+    "weight": 700,
+    "large": false,
+    "ratio": 16.46,
+    "fg": "233,237,245",
+    "bg": "9,14,24"
    },
    {
     "sel": ".sb-count",
