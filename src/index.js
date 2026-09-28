@@ -117,6 +117,44 @@ function handleApi(url, ctx) {
   return json({ error: "Not Found" }, 404);
 }
 
+/**
+ * SPA 深链回落：取 index.html 的壳返回。
+ *
+ * ★ 2026-09-28 修复：此前直接 `env.ASSETS.fetch("/index.html")` 必然 404。
+ * 原因：Static Assets 的 html_handling 会把 `/index.html` **307 归一化到 `/`**
+ * （实测：GET /index.html → 307, Location: /），而 Workers 里**入站 Request 的
+ * redirect 默认是 "manual"**，`new Request(url, request)` 会继承它 ⇒ ASSETS 返回的是
+ * 3xx 而不是 200 ⇒ `idx.ok` 为 false ⇒ 落到末尾 `return new Response("Not Found", 404)`。
+ * 表现就是「站内跳转正常（pushState 不请求服务器），但分享/刷新/直接访问深链即 404」。
+ *
+ * 现在：优先取 `/`（本来就不会重定向），并在遇到 3xx 时手动跟随一次 Location；
+ * `/` 不行再退回 `/index.html`。ASSETS.fetch 直连资源层，不经过本 Worker，无递归风险。
+ */
+async function spaShell(request, env, url) {
+  if (!env || !env.ASSETS) return null;
+  const candidates = ["/", "/index.html"];
+  for (const p of candidates) {
+    try {
+      let res = await env.ASSETS.fetch(new Request(new URL(p, url.origin), {
+        method: "GET",
+        headers: request.headers,
+        redirect: "manual"
+      }));
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("Location");
+        if (!loc) continue;
+        res = await env.ASSETS.fetch(new Request(new URL(loc, url.origin), {
+          method: "GET",
+          headers: request.headers,
+          redirect: "manual"
+        }));
+      }
+      if (res.ok) return res;
+    } catch { /* 换下一个候选 */ }
+  }
+  return null;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -130,18 +168,14 @@ export default {
       }
     }
 
-    // SPA 深链回落（/detail/:id 等非静态路径）
-    try {
-      if (env.ASSETS) {
-        const idx = await env.ASSETS.fetch(new Request(new URL("/index.html", url.origin), request));
-        if (idx.ok) {
-          return new Response(idx.body, {
-            status: 200,
-            headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
-          });
-        }
-      }
-    } catch {}
+    // SPA 深链回落（/detail/:id、/source/:key 等非静态路径）
+    const shell = await spaShell(request, env, url);
+    if (shell) {
+      return new Response(shell.body, {
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" }
+      });
+    }
     return new Response("Not Found", { status: 404 });
   }
 };
