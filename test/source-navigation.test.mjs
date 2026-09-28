@@ -131,7 +131,7 @@ test("6. source route 仍然是一棵树（有根、有分枝、有叶片，且�
 test("7. 点击新闻叶片仍然进入 /detail/:id", () => {
   const app = read("/public/js/app.js");
   assert.ok(/tree\.onOpen\s*=\s*\(item\)\s*=>\s*openDetail\(item\.id\)/.test(app), "叶片 → openDetail");
-  assert.ok(/openFrom\(els\.newsList, "\.ncard\[data-id\]"\)/.test(app), "列表卡片 → 详情");
+  assert.ok(/openFrom\(els\.newsList, "\.ncard\[data-id\], \.sb-row\[data-id\]"\)/.test(app), "列表来源长条行 → 详情");
   const id = ITEMS[0].id;
   const r = R.parseRoute(R.detailHref(id));
   assert.equal(r.view, "detail");
@@ -284,34 +284,35 @@ test("20. 移动端无横向溢出（375 / 768 / 1024 / 1440 断点）", () => {
   assert.ok(!/user-scalable=no|maximum-scale=1/.test(html), "不得禁用缩放");
   const css = read("/public/style.css");
   assert.ok(/@media \(max-width: 1024px\)/.test(css) && /@media \(max-width: 768px\)/.test(css) && /@media \(max-width: 420px\)/.test(css));
-  assert.ok(/\.ss-grid \{ grid-template-columns: 1fr; \}/.test(css), "小屏卡片单列");
-  // 新组件的网格最小列宽不得大于 375 - 两侧内边距
+  // Stage 3.7：列表改为「来源长条」，不再有卡片网格；只要仍存在网格就必须约束最小列宽
   const mins = [...css.matchAll(/minmax\((\d+)px/g)].map((m) => Number(m[1]));
-  assert.ok(mins.length > 0);
   for (const w of mins) {
     assert.ok(w <= 272 + 1, `网格最小列宽 ${w}px 不得超过 272px（375 视口下不溢出）`);
   }
+  // 来源长条列表必须竖向可滚动（由 .list-view 负责）
+  assert.ok(/\.list-view \{[^}]*overflow-y: auto/.test(css), "列表容器竖向滚动");
+  assert.ok(/\.news-list\.sb-wrap/.test(css), "列表使用来源长条包裹层");
   assert.ok(/overflow-wrap: anywhere/.test(css), "来源名过长要能换行而不是撑破容器");
 });
 
-// ============ 附加：来源区域渲染 ============
-test("附加. 来源区域渲染包含名称 / 数量 / 分类 / 进入新闻树 / 卡片", () => {
-  const sections = S.buildListSections(ITEMS, "heat");
+// ============ 附加：来源长条渲染（Stage 3.7 取代原卡片网格） ============
+test("附加. 来源长条渲染包含名称 / 数量 / 分类 / 进入新闻树 / 行内新闻", () => {
+  const sections = S.buildListSections(ITEMS, "time");
   const box = { innerHTML: "" };
-  V.renderSourceSections(box, sections);
+  V.renderSourceBars(box, sections, "time");
   const html = box.innerHTML;
-  assert.ok(html.includes('class="src-section"'), "有来源区域容器");
+  assert.ok(html.includes('class="src-bar'), "有来源长条容器");
   assert.ok(html.includes("微博") && html.includes("IT之家"), "有来源名");
   assert.ok(/\d+ 条/.test(html), "有新闻数量");
-  assert.ok(html.includes('class="ss-tag"'), "有分类");
+  assert.ok(html.includes('class="sb-tag"'), "有分类");
   assert.ok(html.includes("进入新闻树"), "有进入新闻树入口");
   assert.ok(html.includes('data-enter-source="微博"'), "按钮带来源 key");
-  assert.ok(html.includes('class="ncard"'), "有新闻卡片");
-  // 区域数量 = 来源数量
-  assert.equal((html.match(/class="src-section"/g) || []).length, sections.length);
+  assert.ok(html.includes('class="sb-row"'), "长条内有新闻行");
+  // 长条数量 = 来源数量
+  assert.equal((html.match(/class="src-bar/g) || []).length, sections.length);
   // 空数据不崩溃
   const empty = { innerHTML: "" };
-  V.renderSourceSections(empty, []);
+  V.renderSourceBars(empty, []);
   assert.ok(empty.innerHTML.includes("list-empty"));
 });
 

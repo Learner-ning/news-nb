@@ -94,14 +94,15 @@ function handleApi(url, ctx) {
     }
     const source = url.searchParams.get("source") || "all";
     const items = source === "all" ? data.items : data.items.filter((x) => x.tag === source);
-    // 列表只返回渲染所需字段，正文 content 由 /api/news/:id 按需返回
+    // 列表只返回渲染所需字段，正文 content 由 /api/news/:id 按需返回。
+    // 2026-09-28：上限 260 → 400，与 server.js 保持一致（源增至 20 个，总量已超 260）
     return json({
       updatedAt: data.updatedAt,
       stale: Boolean(data.stale),
       warming: Boolean(data.warming),
       throttled: Boolean(data.throttled),
       errors: data.errors || [],
-      items: items.slice(0, 260).map(toListItem)
+      items: items.slice(0, 400).map(toListItem)
     });
   }
   const m = path.match(/^\/api\/news\/([0-9a-f]+)$/i);

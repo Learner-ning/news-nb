@@ -172,7 +172,7 @@ async function waitReady(cdp, sc) {
       const s = t.state();
       ${wantSource ? "if (!s.source) return false;" : ""}
       if (!s.items) return false;
-      ${wantList ? "if (!document.querySelector('#news-list .ncard, #news-list .row-item')) return false;" : ""}
+      ${wantList ? "if (!document.querySelector('#news-list .src-bar, #news-list .sb-row')) return false;" : ""}
       ${wantBoard ? "if (!document.querySelector('#board-list .board-row')) return false;" : ""}
       ${wantDetail ? "if (!document.querySelector('#detail-content .detail-title, #detail-content .detail-body')) return false;" : ""}
       ${!wantList && !wantBoard && !wantDetail ? `const g = t.tree && t.tree.geom; if (!(g && g.categories && g.categories.length)) return false;` : ""}

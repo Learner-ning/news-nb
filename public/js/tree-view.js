@@ -63,6 +63,8 @@ export class TreeView {
     this._downLeaf = null;
     this._downSource = null;
     this._suppressClick = false;
+    this._lastPointerEvent = null;   // 最近一次指针位置，触屏 tap 定位卡片用
+    this._tappedLeaf = null;         // 触屏上「已显示但尚未进入」的叶片 id
     this.pointers = new Map();
     this._pinch = 0;
     this.minScale = 0.06;
@@ -72,6 +74,7 @@ export class TreeView {
     this.onOpen = null;
     this.onOpenSource = null;    // 点击新闻源节点 → 进入独立新闻树
     this.onPeekSource = null;    // 悬停新闻源节点 → 回调 (key, el, count) 供上层弹出预览卡
+    this.isTouch = null;         // 由上层注入：是否触屏设备（决定点叶片是「先看」还是「直接进」）
     this._attached = false;
     this._lod = -1;
     this.geom = null;
@@ -413,6 +416,9 @@ export class TreeView {
       // 记录按下位置对应的叶片 / 新闻源节点（pointer capture 会让 click 目标变成 svg 本身）
       this._downLeaf = e.target.closest?.("[data-leaf]")?.getAttribute("data-leaf") || null;
       this._downSource = e.target.closest?.("[data-srcnode]")?.getAttribute("data-srcnode") || null;
+      // 保留最后一次指针位置：触屏上 click 事件的坐标有时不可靠，
+      // 用它来定位悬停卡（否则卡片可能弹到 (0,0) 去）。
+      this._lastPointerEvent = { clientX: e.clientX, clientY: e.clientY };
       this._suppressClick = false;
       try { svg.setPointerCapture(e.pointerId); } catch {}
       this.pointers.set(e.pointerId, local(e));
@@ -470,16 +476,25 @@ export class TreeView {
       if (sn) this.setSourceHover(sn.getAttribute("data-srcnode"), e);
     });
     svg.addEventListener("pointerout", (e) => {
+      // 触屏：pointerout 会在手指抬起（pointerup）后紧接着触发，而用户并没有「移开」——
+      // 若照常收起，卡片会在点击的瞬间闪一下就没，等于点叶片看不到新闻。
+      // 所以触屏的收起完全交给「点击别处 / 卡片自身 pointerleave」来驱动。
+      if (e.pointerType === "touch") return;
+      const to = e.relatedTarget;
+      // 移到「悬停卡 / 预览卡」上时不能收起卡片 —— 否则用户想把鼠标移到标题上
+      // 准备点「查看详情」的瞬间，卡片就消失了（用户报告的正是这个 bug）。
+      // relatedTarget 可能为 null（移出窗口）或落在卡片内部，两种情况分别处理。
+      if (this.isPointerIntoCard?.(to)) return;
       const from = e.target.closest?.("[data-leaf]");
-      const to = e.relatedTarget?.closest?.("[data-leaf]");
-      if (from && !to) this.clearHover();
+      const toLeaf = to?.closest?.("[data-leaf]");
+      if (from && !toLeaf) this.clearHover();
       const fs = e.target.closest?.("[data-srcnode]");
-      const ts = e.relatedTarget?.closest?.("[data-srcnode]");
+      const ts = to?.closest?.("[data-srcnode]");
       if (fs && !ts) this.clearSourceHover();
     });
 
     // 点击叶片 → 进入详情；点击新闻源节点 → 进入独立新闻树（拖拽后不触发）
-    svg.addEventListener("click", () => {
+    svg.addEventListener("click", (e) => {
       if (this._suppressClick) {
         this._suppressClick = false;
         this._downLeaf = null;
@@ -492,8 +507,20 @@ export class TreeView {
       this._downSource = null;
       if (id) {
         const rec = this.leafElm.get(id);
-        if (rec && this.onOpen) this.onOpen(rec.item);
+        if (!rec) return;
+        // 触屏（无 hover 能力）：第一次点叶片先把新闻「显示出来」（复用悬停卡），
+        // 再点同一片（或点卡上的「查看详情」）才进详情 —— 否则手指一抬就跳走，
+        // 用户根本看不到这条新闻是什么（用户报告的移动端问题）。
+        const touch = this.isTouch?.() ?? false;
+        if (touch && this._tappedLeaf !== id) {
+          this._tappedLeaf = id;
+          this.setHover(id, this._lastPointerEvent || e);
+          return;
+        }
+        this._tappedLeaf = null;
+        if (this.onOpen) this.onOpen(rec.item);
       } else if (src && this.onOpenSource) {
+        this._tappedLeaf = null;
         this.onOpenSource(src);
       }
     });

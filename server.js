@@ -103,8 +103,10 @@ app.get("/api/news", (req, res) => {
     warming: Boolean(data.warming),
     throttled: Boolean(data.throttled),
     errors: data.errors || [],
-    // 列表只返回渲染所需字段，正文 content 由 /api/news/:id 按需返回
-    items: items.slice(0, 260).map(toListItem)
+    // 列表只返回渲染所需字段，正文 content 由 /api/news/:id 按需返回。
+    // 2026-09-28：上限由 260 提到 400 —— 源从 9 个增到 20 个后总量 370 条，
+    // 沿用 260 会把排在后面的来源整段截掉（列表「来源长条」会少几个来源，属于功能性错误）。
+    items: items.slice(0, 400).map(toListItem)
   });
 });
 

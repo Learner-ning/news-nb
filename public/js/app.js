@@ -106,6 +106,9 @@ function loadBg() {
   return d;
 }
 
+// 热榜「总榜」的 chip key（不与任何真实平台名冲突）
+const OVERALL_KEY = "__overall__";
+
 const state = {
   mode: (() => {
     try { return ["tree", "list", "board"].includes(localStorage.getItem("nt.mode")) ? localStorage.getItem("nt.mode") : "tree"; } catch { return "tree"; }
@@ -114,7 +117,7 @@ const state = {
     try { return localStorage.getItem("nt.cat") || "all"; } catch { return "all"; }
   })(),
   sort: (() => {
-    try { return localStorage.getItem("nt.sort") === "time" ? "time" : "heat"; } catch { return "heat"; }
+    try { return localStorage.getItem("nt.sort") === "heat" ? "heat" : "time"; } catch { return "time"; }
   })(),
   dockOpen: (() => {
     try { return localStorage.getItem("nt.dock") !== "off"; } catch { return true; }
@@ -332,17 +335,31 @@ function renderList() {
   els.listTitle.textContent = state.source
     ? `${state.source} · 新闻列表`
     : state.cat === "all" ? "全部新闻" : `${state.cat} · 新闻列表`;
-  views.setSourceSectionsMeta(els.listMeta, sections, items.length);
-  views.renderSourceSections(els.newsList, sections);
+  views.setSourceBarsMeta(els.listMeta, sections, items.length, state.sort);
+  views.renderSourceBars(els.newsList, sections, state.sort, expandedBars);
   syncSortPills();
 }
 
+/** 已展开的「来源长条」（key 集合）；重新渲染列表时保持展开态 */
+const expandedBars = new Set();
+
+/** 展开 / 收起某个来源长条：移动端没有 hover，「展开全部」是查看该来源全部新闻的唯一入口 */
+function toggleSourceBar(key) {
+  if (expandedBars.has(key)) expandedBars.delete(key);
+  else expandedBars.add(key);
+  renderList();
+}
+
 function renderBoard() {
-  // 热榜视图：仅展示 kind=hot（平台热搜）数据，按平台分组 + 平台名次
-  const hot = flatFiltered().filter((x) => x.kind === "hot" || x.type === "hot");
+  // 热榜视图有两种排法：
+  //   总榜（__overall__）—— 把该分类下**全部**新闻按统一 heatScore 跨来源排名
+  //   平台榜（其余）      —— 只取 kind=hot，按平台分组 + 平台名次
+  const scoped = flatFiltered();
+  const hot = scoped.filter((x) => x.kind === "hot" || x.type === "hot");
   const groups = views.groupHotByPlatform(hot);
-  views.setBoardMeta(els.boardMeta, groups, hot.length);
-  // 平台筛选 chips
+  const overall = state.plat === OVERALL_KEY;
+
+  // 平台筛选 chips（「总榜」排在最前）
   els.boardPlats.innerHTML = "";
   const mkChip = (key, label, active) => {
     const b = document.createElement("button");
@@ -352,8 +369,17 @@ function renderBoard() {
     b.setAttribute("aria-pressed", active ? "true" : "false");
     els.boardPlats.appendChild(b);
   };
-  mkChip("all", "全部平台", !state.plat || state.plat === "all" || !groups.some((g) => g.platform === state.plat));
-  groups.forEach((g) => mkChip(g.platform, g.platform, state.plat === g.platform));
+  mkChip(OVERALL_KEY, "总榜", overall);
+  mkChip("all", "全部平台", !overall && (!state.plat || state.plat === "all" || !groups.some((g) => g.platform === state.plat)));
+  groups.forEach((g) => mkChip(g.platform, g.platform, !overall && state.plat === g.platform));
+
+  if (overall) {
+    views.setBoardOverallMeta(els.boardMeta, scoped.length);
+    views.renderBoardOverall(els.boardList, scoped, { limit: 50 });
+    return;
+  }
+
+  views.setBoardMeta(els.boardMeta, groups, hot.length);
   const active = groups.some((g) => g.platform === state.plat) ? state.plat : null;
   views.renderBoard(els.boardList, groups, { limit: 10, active });
 }
@@ -446,6 +472,19 @@ function renderCatBar() {
   };
   mk("all", "全部", state.cat === "all");
   tags.forEach((t) => mk(t, t, state.cat === t, colorFor(t)));
+  syncCatScrollEdge();
+}
+
+/**
+ * 底部分类栏的滚动边缘状态：
+ * 滑到最右时取消右缘渐隐，否则最后一个标签会被「渐隐遮罩」看起来切掉一半。
+ * 窄屏下这是「还有标签可滑」的唯一可见提示（滚动条被隐藏了）。
+ */
+function syncCatScrollEdge() {
+  const sc = els.catScroll;
+  if (!sc) return;
+  const atEnd = sc.scrollWidth - sc.clientWidth - sc.scrollLeft <= 2;
+  sc.classList.toggle("at-end", atEnd);
 }
 
 function pickCat(key) {
@@ -535,6 +574,21 @@ function wire() {
     views.positionHoverCard(els.hoverCard, e);
   };
   tree.onLeave = () => els.hoverCard.classList.add("hidden");
+  // 指针从叶片移到悬浮卡上时，卡片必须保持可见 —— 否则用户来不及点到「查看详情」。
+  // 这是用户明确报告的交互 bug：鼠标移到标题上卡片就消失了。
+  tree.isPointerIntoCard = (node) =>
+    Boolean(node && (els.hoverCard.contains(node) || els.peekCard.contains(node)));
+  // 触屏设备判定：决定点叶片是「先显示新闻」还是「直接进入详情」。
+  // 同时看 maxTouchPoints 与 hover 媒体特性 —— 带触摸屏的笔记本仍然悬停优先。
+  tree.isTouch = () => {
+    try {
+      const noHover = matchMedia("(hover: none)").matches;
+      const coarse = matchMedia("(pointer: coarse)").matches;
+      return noHover || (coarse && navigator.maxTouchPoints > 0);
+    } catch {
+      return (navigator.maxTouchPoints || 0) > 0;
+    }
+  };
   tree.onOpen = (item) => openDetail(item.id);
   // 点击新闻源节点 → 进入该来源的独立新闻树（不是打开某条新闻详情）
   tree.onOpenSource = (key) => goSource(key);
@@ -548,6 +602,18 @@ function wire() {
     positionPeek(els.peekCard, el, e);
   };
   tree.attach();
+  // 悬浮卡自身的进出：鼠标真正离开卡片（且没回到叶片）时收起，避免卡片「赖着不走」。
+  // 用 pointerleave 而不是 pointerout —— 后者在卡内子元素之间移动时也会触发。
+  els.hoverCard.addEventListener("pointerleave", (e) => {
+    const back = e.relatedTarget?.closest?.("[data-leaf]");
+    if (!back) els.hoverCard.classList.add("hidden");
+  });
+  // 触屏：点空白处收起悬浮卡（触屏下没有 pointerout，需要显式提供「取消」途径）
+  document.addEventListener("pointerdown", (e) => {
+    if (els.hoverCard.classList.contains("hidden")) return;
+    if (els.hoverCard.contains(e.target) || e.target.closest?.("[data-leaf]")) return;
+    els.hoverCard.classList.add("hidden");
+  }, true);
   els.hoverCard.querySelector("#hc-open").addEventListener("click", () => {
     const id = els.hoverCard.dataset.id;
     if (id) openDetail(id);
@@ -611,6 +677,9 @@ function wire() {
     const btn = e.target.closest(".cat-btn");
     if (btn) pickCat(btn.dataset.cat);
   });
+  // 分类栏滚动 → 更新右缘渐隐状态（并保证窗口尺寸变化后重新计算）
+  els.catScroll.addEventListener("scroll", syncCatScrollEdge, { passive: true });
+  window.addEventListener("resize", syncCatScrollEdge);
 
   // 列表 / 热榜点击与键盘（列表=卡片 ncard，热榜=榜单行 board-row）
   const openFrom = (container, selector) => {
@@ -628,15 +697,22 @@ function wire() {
       }
     });
   };
-  openFrom(els.newsList, ".ncard[data-id]");
+  openFrom(els.newsList, ".ncard[data-id], .sb-row[data-id]");
   openFrom(els.boardList, ".row-item[data-id]");
 
-  // 列表来源区域里的「进入新闻树」（与点卡片进详情语义不同）
+  // 列表来源长条：进入新闻树（与点某条新闻进详情语义不同）
   els.newsList.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-enter-source]");
     if (btn) {
       e.stopPropagation();
       goSource(btn.dataset.enterSource);
+      return;
+    }
+    // 「展开全部」：把这条来源长条展开，条内列出该来源的全部新闻（仍在同一长条内）
+    const more = e.target.closest("[data-more-source]");
+    if (more) {
+      e.stopPropagation();
+      toggleSourceBar(more.dataset.moreSource);
     }
   });
 

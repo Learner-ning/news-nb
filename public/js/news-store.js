@@ -223,21 +223,27 @@ export function sourceMeta(name, items) {
 /**
  * 新闻列表分区：先按 source 分组，再在组内排序
  * —— 同一来源绝不拆散（分组先于排序，热度排序不会打散来源）
+ * —— 分区之间按「该来源最新一条的时间」倒序（Stage 3.7：来源长条要按时间排）
  * @returns [{ key, name, color, tag, count, items }]
  */
 export function buildListSections(items, sort = "heat") {
   const byHeat = (arr) => [...arr].sort((a, b) => (b.heatScore || 0) - (a.heatScore || 0));
   const byTime = (arr) => [...arr].sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
   const pick = sort === "time" ? byTime : byHeat;
-  return buildSourceModel(items).map((s) => ({
-    key: s.key,
-    name: s.name,
-    color: s.color,
-    tag: s.tag,
-    tags: s.tags,
-    count: s.count,
-    items: pick(s.sources[0].items)
-  }));
+  const newestOf = (arr) =>
+    arr.reduce((m, x) => Math.max(m, new Date(x.time || 0).getTime() || 0), 0);
+  return buildSourceModel(items)
+    .map((s) => ({
+      key: s.key,
+      name: s.name,
+      color: s.color,
+      tag: s.tag,
+      tags: s.tags,
+      count: s.count,
+      items: pick(s.sources[0].items)
+    }))
+    // 来源之间按时间倒序 —— 最新的来源排在最前（用户要求「按时间排序」）
+    .sort((a, b) => newestOf(b.items) - newestOf(a.items) || a.name.localeCompare(b.name));
 }
 
 // 每一片叶子的元信息（复用跳转详情逻辑所需的字段）

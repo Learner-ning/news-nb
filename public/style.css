@@ -492,7 +492,7 @@ body.booting .list-empty { display: none; }
 }
 .cat-bar.hidden { display: none; }
 .cat-bar-hint { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; flex: none; }
-.cat-scroll { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 8px 2px; flex: 1; }
+.cat-scroll { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 8px 2px; flex: 1; touch-action: pan-x; }
 .cat-scroll::-webkit-scrollbar { display: none; }
 .cat-btn {
   flex: none;
@@ -792,6 +792,99 @@ body[data-env="night"] {
 .ss-grid {
   display: grid; gap: var(--src-grid-gap);
   grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+}
+
+/* ==================================================================
+   Stage 3.7：新闻列表 = 来源长条（竖向滚动，按时间排序）
+   ---------------------------------------------------------------
+   用户要求：新闻源以「可竖向滑动的长条矩形」呈现、按时间排序，
+   不再把每条新闻都平铺成卡片网格。所以这里用横向铺满的长条代替网格：
+   一条 = 一个来源，条内预览最新几条，整列由 .list-view 负责竖向滚动。
+   ================================================================== */
+.news-list.sb-wrap { display: flex; flex-direction: column; gap: 12px; }
+.src-bar {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-card);
+  padding: 13px 16px 12px;
+  transition: border-color .16s var(--ease, ease), box-shadow .16s var(--ease, ease);
+}
+.src-bar:hover { border-color: color-mix(in srgb, var(--c) 45%, var(--border)); }
+.sb-head {
+  display: flex; align-items: center; gap: 12px;
+  padding-bottom: 10px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+/* 左侧色条：一眼区分来源（比整块底色克制） */
+.sb-accent {
+  flex: none; width: 4px; height: 30px; border-radius: 99px;
+  background: var(--c, var(--accent));
+}
+.sb-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.sb-name {
+  margin: 0; font-size: 15px; font-weight: 700; letter-spacing: .01em;
+  color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-meta {
+  font-size: 11.5px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sb-tag {
+  flex: none; font-size: 11px; padding: 3px 10px; border-radius: 99px;
+  color: color-mix(in srgb, var(--c) 72%, var(--text-primary));
+  background: color-mix(in srgb, var(--c) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
+}
+.sb-more, .sb-enter {
+  flex: none; cursor: pointer; font: 600 12px inherit; transition: .16s;
+  border-radius: 99px; padding: 7px 13px; min-height: 32px;
+}
+.sb-more {
+  border: 1px solid var(--border); background: transparent; color: var(--text-secondary);
+}
+.sb-more:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.sb-more.hidden { display: none; }
+.sb-enter {
+  border: 1px solid transparent; color: var(--text-on-accent); background: var(--accent);
+}
+.sb-enter:hover { filter: brightness(1.08); }
+
+/* 条内：每条新闻一「行」（时间 · 标题 · 热度），仍是长条形态而非卡片块 */
+.sb-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.sb-row {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 8px 10px; border-radius: 9px; cursor: pointer;
+  transition: background .14s var(--ease, ease);
+}
+.sb-row:hover, .sb-row:focus-visible {
+  background: var(--bg-chip-hover, color-mix(in srgb, var(--accent) 8%, transparent));
+  outline: none;
+}
+.sb-time {
+  flex: none; width: 64px; font-size: 11.5px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sb-title {
+  flex: 1 1 auto; min-width: 0; font-size: 13.5px; line-height: 1.5;
+  color: var(--text-primary); font-weight: 500;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sb-heat {
+  flex: none; font-size: 11.5px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums; min-width: 22px; text-align: right;
+}
+.sb-rest { padding: 6px 10px 2px; font-size: 11.5px; color: var(--text-muted); }
+
+@media (max-width: 560px) {
+  .src-bar { padding: 11px 12px 10px; border-radius: 12px; }
+  .sb-head { flex-wrap: wrap; gap: 8px; }
+  .sb-tag { order: 3; }
+  .sb-more, .sb-enter { padding: 7px 11px; font-size: 11.5px; }
+  .sb-time { width: 52px; font-size: 11px; }
+  .sb-title { font-size: 13px; -webkit-line-clamp: 2; }
 }
 
 /* —— 卡片降权：分组交给来源区域，卡片只做轻量呈现 —— */
@@ -1202,8 +1295,20 @@ body[data-env="night"] .cat-bar {
 .cat-scroll {
   display: flex; align-items: center; gap: 7px; flex: 1 1 auto;
   overflow-x: auto; scrollbar-width: none; min-width: 0;
+  /* 横向滑动：显式声明手势交给浏览器滚动，避免被祖先的指针处理逻辑吞掉 */
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  /* 右缘渐隐，暗示「右面还有标签可滑」 */
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 18px), transparent 100%);
 }
 .cat-scroll::-webkit-scrollbar { display: none; }
+/* 已滑到最右：取消渐隐，避免最后一个标签看起来「被切了一半」 */
+.cat-scroll.at-end {
+  -webkit-mask-image: none; mask-image: none;
+}
 .cat-btn {
   flex: none; cursor: pointer;
   padding: 7px 15px; border-radius: 99px;
@@ -1220,6 +1325,27 @@ body[data-env="night"] .cat-bar {
 }
 body[data-env="day"] .cat-btn.active { background: #1b1a17; color: #f3f0e9; }
 body[data-env="night"] .cat-btn.active { background: #e9edf5; color: #0a1020; }
+
+/* 窄屏：分类标签是底栏主任务，宽度优先给它。
+   实测数据（390×844）：修复前 .cat-scroll 仅 126px（约 1 个标签宽），
+   因为 hint(23) + env-toggle(109) + bar-tools(74) + 内边距(28) + 间隙(30) 占掉 264px。 */
+@media (max-width: 700px) {
+  .cat-bar-hint { display: none; }
+  .cat-bar { gap: 6px; padding: 0 8px; }
+  .cat-bar .env-toggle { padding: 2px; }
+  .cat-bar .env-btn { padding: 5px 8px; font-size: 10px; }
+  .cat-bar .bar-tools { gap: 4px; }
+  .cat-bar .bar-tools .icon-btn { width: 30px; height: 30px; font-size: 13px; }
+}
+
+/* 超窄屏（≤430px）：标签栏是第一任务，DAY/NIGHT 再压一档 */
+@media (max-width: 430px) {
+  .cat-bar { gap: 5px; padding: 0 6px; }
+  .cat-bar .env-btn { padding: 5px 6px; font-size: 9.5px; letter-spacing: .06em; }
+  .cat-bar .bar-tools .icon-btn { width: 28px; height: 28px; }
+  /* 分类标签自身也收一点，让同屏能看到更多个 */
+  .cat-bar .cat-btn { padding: 6px 11px; font-size: 12px; }
+}
 
 /* DAY / NIGHT 切换：两段式，当前态明确 */
 .env-toggle {
@@ -1368,6 +1494,14 @@ body[data-env="night"] .hc-open { color: #06101f; }
 /* 响应式：小屏把树的空间尽量留足，控制条收窄 */
 @media (max-width: 560px) {
   :root { --top-h: 52px; --bot-h: 56px; }
+  /* 窄屏：底栏的首要职责是「分类可横向滑动」，所以把宽度优先给 #cat-scroll，
+     其余控制项压缩到最小占用（实测 390px 下原先只剩 126px 给标签，等于只能看到 1 个）。 */
+  .cat-bar { gap: 6px; padding: 0 8px; }
+  .cat-bar-hint { display: none; }            /* 「分类」二字在窄屏是纯装饰，让位给标签 */
+  .env-toggle { padding: 2px; }
+  .env-btn { padding: 5px 7px; font-size: 10px; }
+  .bar-tools { gap: 4px; }
+  .bar-tools .icon-btn { width: 30px; height: 30px; font-size: 13px; }
   .brand { font-size: 15px; letter-spacing: .12em; }
   .brand svg { width: 18px; height: 18px; }
   .top-stats { gap: 10px; }
